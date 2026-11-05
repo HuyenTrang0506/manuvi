@@ -1,0 +1,25 @@
+[project]
+name = "translator-electronic"
+version = "0.1.0"
+description = "Pipeline dịch Shop Manual kỹ thuật EN→VI (ưu tiên chương điện)"
+requires-python = ">=3.9"
+dependencies = [
+    "pymupdf>=1.24.0",
+    "pydantic>=2.0",
+    "typer>=0.12.0",
+    "python-docx>=1.1.0",
+    "rich>=13.0",
+    "openpyxl>=3.1.0",
+    "docx2pdf>=0.1.8; sys_platform == 'darwin'",
+]
+
+[project.scripts]
+translate-manual = "src.cli:app"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

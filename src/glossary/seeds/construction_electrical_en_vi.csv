@@ -1,0 +1,26 @@
+term_en,term_vi,variants_en,do_not_translate,domain,status
+harness,bộ dây điện,wire harness|false,electrical,approved
+connector,đầu nối,,false,electrical,approved
+relay,rơ-le,,false,electrical,approved
+solenoid,van điện từ,solenoid valve|false,electrical,approved
+sensor,cảm biến,,false,electrical,approved
+actuator,bộ truyền động,,false,electrical,approved
+battery,ắc quy,,false,electrical,approved
+starter,máy khởi động,starting motor|false,electrical,approved
+alternator,máy phát điện,,false,electrical,approved
+ground,tiếp đất,,false,electrical,approved
+fuse,cầu chì,,false,electrical,approved
+wiring,hệ thống dây điện,,false,electrical,approved
+switch,công tắc,,false,electrical,approved
+circuit,mạch điện,,false,electrical,approved
+terminal,đầu cực,,false,electrical,approved
+voltage,điện áp,,false,electrical,approved
+ECU,ECU,,true,electrical,protected
+E/G,động cơ,engine,false,electrical,approved
+WARNING,CẢNH BÁO,,false,safety,approved
+CAUTION,THẬN TRỌNG,,false,safety,approved
+DANGER,NGUY HIỂM,,false,safety,approved
+upper,phần trên,upper structure|false,mechanical,approved
+assy,lắp ráp,assembly|false,mechanical,approved
+pilot valve,van pilot,,false,hydraulic,approved
+troubleshooting,chẩn đoán sự cố,fault finding|false,electrical,approved
