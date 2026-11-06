@@ -119,7 +119,7 @@ def test_remote_ollama_public_only():
     assert OllamaAdapter("https://hosted.example/v1").data_classes == frozenset({"public"})
     assert "customer" in OllamaAdapter().data_classes
     assert Adapter.data_classes == frozenset({"public"})
-    assert RecordedAdapter.data_classes == frozenset({"public"})
+    assert RecordedAdapter.data_classes == frozenset({"public", "customer"})
     assert BedrockAdapter().data_classes == frozenset({"public"})
     assert "customer" in BedrockAdapter(customer_data=True).data_classes
 
