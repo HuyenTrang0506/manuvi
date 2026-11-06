@@ -94,7 +94,7 @@ def test_batch_gate_waits_without_approval(tmp_path):
 # ---------------------------------------------------------------- resume after SIGKILL
 def _cli(job, *extra, env=None):
     return [sys.executable, "-m", "src.pipeline", "run", "--job-dir", str(job), "--job-id", "job1",
-            "--batch-size", "4", "--approve-batches", "--approve-safety", *extra]
+            "--batch-size", "4", "--approve-batches", *extra]
 
 
 def _ledger(job):
@@ -112,7 +112,9 @@ def _gateway_calls(path):
 def test_resume_after_kill_zero_rebilled(tmp_path, guard):
     job = tmp_path / "job1"
     job.mkdir()
-    (job / "fixture.json").write_text(json.dumps(synthetic_chunks(12)))
+    (job / "fixture.json").write_text(json.dumps([
+        {"id": f"C{i:03d}", "page": 1, "source": f"Check item {i} of YT12-AB3C." + (" DROPME" if i == 8 else "")}
+        for i in range(1, 13)]))
     log = tmp_path / "calls.log"
     env = {**os.environ, "MANUVI_LLM_CALL_LOG": str(log)}
     extra = [] if guard else ["--no-guard"]
@@ -151,7 +153,7 @@ def test_resume_after_kill_at_gate_keeps_done_work(tmp_path):
     before = _ledger(d)
     run(d, batch_size=2, approve_batches=True)
     after = _ledger(d)
-    assert after[: len(before)] == before and len(after) == 4
+    assert after[: len(before)] == before and len([r for r in after if r[2] == "billed"]) == 4
 
 
 # ---------------------------------------------------------------- budget cap
@@ -255,3 +257,86 @@ def test_langfuse_exporter_is_off_by_default_and_never_gets_text(job, monkeypatc
     assert events and all(e["name"].startswith("pipeline.") for e in events)
     assert "relay box" not in json.dumps(events) and "VI:" not in json.dumps(events)
     assert sanitize({"node": "x", "text": "secret", "source": "secret"}) == {"node": "x"}
+
+
+# ---------------------------------------------------------------- review fixes
+def test_signal_detection_is_case_insensitive(tmp_path):
+    d = tmp_path / "j"
+    write_chunks(d, [{"id": "A", "page": 1, "source": "Warning: hot surface.", "kind": "prose"},
+                     {"id": "B", "page": 1, "source": "CAUTION", "kind": "label"},
+                     {"id": "C", "page": 1, "source": "Caution: sharp edge near YT12-AB3C.", "kind": "step"}])
+    res, _ = run(d)
+    assert res.state == "waiting"
+    assert {k: v["kind"] for k, v in segs(d).items()} == {"A": "signal"}  # stopped at the first safety gate
+    from src.pipeline.db import JobDB
+    db = JobDB(d)
+    assert [db.get_chunk(c).kind for c in ("A", "B", "C")] == ["signal"] * 3
+    db.close()
+
+
+def test_safety_gate_needs_recorded_human_approval(job):
+    res, _ = run(job, approve_batches=True)
+    assert res.state == "waiting" and res.gate["chunk_id"] == "C003"
+    p = job / "segments.json"
+    data = json.loads(p.read_text())
+    for s in data:
+        if s["id"] == "C003":
+            s["decision"] = "rejected"
+    p.write_text(json.dumps(data))
+    assert run(job, approve_batches=True)[0].gate["chunk_id"] == "C003"  # still stopped
+    for s in data:
+        if s["id"] == "C003":
+            s["decision"] = "approved"
+    p.write_text(json.dumps(data))
+    res, _ = run(job, approve_batches=True)
+    assert res.state == "waiting" and res.gate["chunk_id"] == "C007"  # next safety segment needs its own click
+    r = subprocess.run([sys.executable, "-m", "src.pipeline", "run", "--approve-safety", "--job-dir", str(job)],
+                       cwd=REPO, capture_output=True, text=True)
+    assert r.returncode != 0  # the option no longer exists
+
+
+def test_export_preserves_decisions_with_interleaved_write(job):
+    from src.common.filelock import file_lock
+    from src.pipeline.db import JobDB
+    full(job)
+    p = job / "segments.json"
+    with file_lock(p):  # the web app writes a decision between two pipeline exports
+        data = json.loads(p.read_text())
+        data[1]["decision"] = "approved"
+        p.write_text(json.dumps(data))
+    db = JobDB(job)
+    db.export_segments()
+    db.close()
+    assert segs(job)["C002"]["decision"] == "approved"
+
+
+def test_output_is_nfc_and_gw_error_has_no_provider_text(tmp_path):
+    import unicodedata
+    from src.llm_gateway import ServerError
+
+    class Leaky(DemoTranslator):
+        def complete(self, req, model_id):
+            if "boom" in req.messages[-1]["content"]:
+                raise ServerError("provider said: SECRET customer text")
+            r = super().complete(req, model_id)
+            return {**r, "text": unicodedata.normalize("NFD", r["text"] + " tiếng việt")}
+
+    d = tmp_path / "j"
+    write_chunks(d, [{"id": "A", "page": 1, "source": "Check relay."}, {"id": "B", "page": 1, "source": "boom"}])
+    gw = make_gateway(d, "dev", adapters={"fake": Leaky()}, max_retries=0)
+    run_job(d, gateway=gw, job_id="job1", approve_batches=True)
+    s = segs(d)
+    assert unicodedata.is_normalized("NFC", s["A"]["target"]) and "tiếng việt" in s["A"]["target"]
+    assert s["B"]["status"] == "error" and "SECRET" not in json.dumps(s["B"]) and "ServerError" in s["B"]["issues"][0]
+
+
+def test_started_row_without_result_is_flagged_not_rebilled(tmp_path):
+    from src.pipeline.db import Ledger
+    d = tmp_path / "j"
+    write_chunks(d, [{"id": "A", "page": 1, "source": "Check relay."}])
+    lg = Ledger(d, "job1")
+    lg._mark("started", "A", "g0:translate")  # a process died after this row, before the result was recorded
+    lg.close()
+    res, ad = run(d)
+    s = segs(d)["A"]
+    assert ad.calls == 0 and s["status"] == "needs_review" and s["issues"][0].startswith("LEDGER001")

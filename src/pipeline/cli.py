@@ -47,7 +47,6 @@ def run(
     job_id: Optional[str] = typer.Option(None, "--job-id"),
     batch_size: int = typer.Option(10),
     approve_batches: bool = typer.Option(False, help="auto-approve batch gates (stands in for a human)"),
-    approve_safety: bool = typer.Option(False, help="approve safety gates (a human act; off by default)"),
     budget: Optional[float] = typer.Option(None, help="hard job cap in USD, enforced by the gateway"),
     terms: Optional[Path] = typer.Option(None, help="term store JSONL"),
     stall_at: str = typer.Option("", hidden=True),
@@ -58,7 +57,7 @@ def run(
     elif not (job_dir / CHUNKS_FILE).exists():
         typer.echo(f"no {CHUNKS_FILE} in {job_dir}; pass --pdf-text-fixture", err=True)
         raise typer.Exit(2)
-    _finish(run_job(job_dir, **_common(job_dir, profile, job_id, batch_size, approve_batches, approve_safety,
+    _finish(run_job(job_dir, **_common(job_dir, profile, job_id, batch_size, approve_batches, False,
                                        budget, terms, stall_at, no_guard)))
 
 
@@ -67,11 +66,11 @@ def approve(
     job_dir: Path = typer.Option(..., "--job-dir"),
     profile: str = typer.Option("dev"),
     job_id: Optional[str] = typer.Option(None),
-    batches: bool = typer.Option(True), safety: bool = typer.Option(False, help="approve safety gates"),
+    batches: bool = typer.Option(True),
     batch_size: int = typer.Option(10),
 ) -> None:
-    """Resume a job that is waiting at a gate, approving the given gate kinds."""
-    _finish(run_job(job_dir, **_common(job_dir, profile, job_id, batch_size, batches, safety, None, None, "", False)))
+    """Resume a job waiting at a gate. Safety gates open only after the web app recorded decision=approved."""
+    _finish(run_job(job_dir, **_common(job_dir, profile, job_id, batch_size, batches, False, None, None, "", False)))
 
 
 @app.command()
@@ -97,12 +96,12 @@ def rerun(
     pages: Optional[str] = typer.Option(None, help="comma separated pages"),
     failed: bool = typer.Option(False, help="re-run failed chunks only"),
     profile: str = typer.Option("dev"), job_id: Optional[str] = typer.Option(None),
-    approve_batches: bool = typer.Option(False), approve_safety: bool = typer.Option(False),
+    approve_batches: bool = typer.Option(False),
     budget: Optional[float] = typer.Option(None),
 ) -> None:
     if not pages and not failed:
         typer.echo("choose --pages and/or --failed", err=True)
         raise typer.Exit(2)
     pg = [int(p) for p in pages.split(",")] if pages else None
-    kw = _common(job_dir, profile, job_id, 10, approve_batches, approve_safety, budget, None, "", False)
+    kw = _common(job_dir, profile, job_id, 10, approve_batches, False, budget, None, "", False)
     _finish(rerun_selection(job_dir, pages=pg, failed=failed, **kw))

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import time
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, TypedDict
 
@@ -20,7 +21,7 @@ from ..guard import MAX_FIX_ATTEMPTS, QAContext, Severity, load_patterns, load_s
 from ..llm_gateway import (BudgetExceeded, DataClassViolation, Gateway, GatewayError, LLMRequest, NotConfigured)
 from ..llm_gateway.adapters import estimate_tokens
 from ..terms import TermStore, TranslationMemory, build_translation_prompt, select_glossary_subset
-from .db import JobDB, Ledger
+from .db import InFlightUnknown, JobDB, Ledger
 from .schema import KINDS, Segment
 from .tracing import Tracer, text_hash
 
@@ -39,9 +40,9 @@ class State(TypedDict, total=False):
 
 
 def classify_kind(source: str, given: Optional[str], signal_words: dict[str, str]) -> str:
-    """Deterministic kind. A signal word in the source always wins (safety first)."""
+    """Deterministic kind. A signal word in the source (any case) always wins (safety first)."""
     words = [w for w in signal_words if w not in ("YES", "NO")]
-    if any(re.search(rf"(?<!\w){re.escape(w)}(?!\w)", source) for w in words):
+    if any(re.search(rf"(?<!\w){re.escape(w)}(?!\w)", source, re.IGNORECASE) for w in words):
         return "signal"
     if given in KINDS:
         return given  # type: ignore[return-value]
@@ -176,8 +177,11 @@ def build_graph(ctx: PipelineContext, checkpointer):
             res, outcome = call_gateway(cur, stage, alias, messages)
         except (BudgetExceeded, NotConfigured, DataClassViolation):
             raise  # job-level problem: stop the run, the checkpoint stays at this node
+        except InFlightUnknown:
+            cur["fatal"] = "LEDGER001: a call for this step was started before a crash and its result was not recorded; not re-sent"
+            return {"cur": cur, "_trace": {"stage": stage, "status": "needs_review"}}
         except GatewayError as e:
-            cur["fatal"] = f"GW001: {type(e).__name__}: {e}"
+            cur["fatal"] = f"GW001: gateway call failed ({type(e).__name__})"  # no provider text
             return {"cur": cur, "_trace": {"stage": stage, "status": "error"}}
         cur["raw"] = res["text"]
         return {"cur": cur, "_trace": {
@@ -195,6 +199,7 @@ def build_graph(ctx: PipelineContext, checkpointer):
 
     def unmask_node(state: State) -> dict:
         cur = dict(state["cur"])
+        cur["raw"] = unicodedata.normalize("NFC", cur["raw"])
         cur["target"] = unmask(cur["raw"], cur["mapping"])
         return {"cur": cur}
 
@@ -228,8 +233,9 @@ def build_graph(ctx: PipelineContext, checkpointer):
         kind = c.kind or "prose"
         if cur.get("fatal") or cur.get("skip"):
             msg = cur.get("fatal") or cur["skip"]
+            is_err = bool(cur.get("fatal")) and msg.startswith("GW001")
             seg = Segment(id=c.id, page=c.page, section=c.section, source=c.source, target="",
-                          status="error" if cur.get("fatal") else "needs_review", issues=[msg],
+                          status="error" if is_err else "needs_review", issues=[msg],
                           risk=risk_of(kind, "error", 1, 0), kind=kind)
         else:
             issues = [i for i in cur["issues"] if i["severity"] != "ok"]
