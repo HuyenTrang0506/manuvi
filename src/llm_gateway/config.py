@@ -26,6 +26,7 @@ class ResolvedConfig(BaseModel):
     cap_run_usd: Optional[float] = None
     cap_job_usd: Optional[float] = None
     cap_month_usd: Optional[float] = None
+    customer_data_adapters: tuple[str, ...] = ()
     models: dict[str, str]  # alias -> "adapter:model_id"
 
     def split(self, alias: str) -> tuple[str, str]:
@@ -96,4 +97,5 @@ def resolve_config(
         cap_job_usd=caps.get("job"),
         cap_month_usd=caps.get("month"),
         models=models,
+        customer_data_adapters=tuple(y.get("customer_data_adapters", [])),
     )

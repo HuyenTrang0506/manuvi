@@ -18,6 +18,7 @@ profiles:
       vision: "ollama:llava:7b"
   prod:
     allow_paid: true
+    customer_data_adapters: [bedrock]  # explicit opt-in to send customer data
     caps_usd: {job: 5, month: 20}
     models:
       bulk: "bedrock:placeholder-bulk-model"

@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from src.llm_gateway import (BudgetExceeded, DataClassViolation, FakeAdapter,
+from src.llm_gateway import (BedrockAdapter, BudgetExceeded, DataClassViolation, FakeAdapter,
                              FakeParameterStore, Gateway, LLMRequest, NotConfigured,
                              OllamaAdapter, RecordedAdapter, RecordedMiss, Throttled,
                              cache_key, resolve_config)
@@ -89,7 +89,9 @@ def test_job_cap_stops_second_call(tmp_path):
     g = gw(tmp_path, env=paid_env(), adapters={"paid": fake})
     g.start_job("j1")
     big = "x" * 4000
-    g.jobs["j1"].spent_usd = 4.9999
+    g.store.add_spend("x", 0)
+    g.store.settle(["job:j1"], 0, 0)
+    g.store.reserve([("job:j1", None)], 4.9999)
     with pytest.raises(BudgetExceeded):
         g.complete(req(text=big, max_tokens=2000))
     assert fake.calls == 0
@@ -116,6 +118,10 @@ def test_free_hosted_adapter_refuses_customer_data_no_retry(tmp_path):
 def test_remote_ollama_public_only():
     assert OllamaAdapter("https://hosted.example/v1").data_classes == frozenset({"public"})
     assert "customer" in OllamaAdapter().data_classes
+    assert Adapter.data_classes == frozenset({"public"})
+    assert RecordedAdapter.data_classes == frozenset({"public"})
+    assert BedrockAdapter().data_classes == frozenset({"public"})
+    assert "customer" in BedrockAdapter(customer_data=True).data_classes
 
 
 def test_env_change_applies_to_next_job_not_running_job(tmp_path):
@@ -133,14 +139,14 @@ def test_env_change_applies_to_next_job_not_running_job(tmp_path):
 
 
 def test_recorded_adapter_replay(tmp_path):
-    r = req(text="recorded")
+    r = req(text="recorded", dc="public")
     key = cache_key(r, "fake-bulk")
     fx = tmp_path / "fx.jsonl"
     fx.write_text(json.dumps({"key": key, "text": "xin chao", "tokens_in": 3, "tokens_out": 2}) + "\n")
     g = gw(tmp_path, adapters={"fake": RecordedAdapter(fx)})
     assert g.complete(r).text == "xin chao"
     with pytest.raises(RecordedMiss):
-        g.complete(req(text="unknown"))
+        g.complete(req(text="unknown", dc="public"))
 
 
 class Flaky(Adapter):
@@ -209,3 +215,88 @@ def test_ci_guard_script(tmp_path):
                    + json.dumps({"paid": False, "cache_hit": False}) + "\n")
     assert run(log).returncode == 0
     assert run(tmp_path / "missing.jsonl").returncode == 0
+
+
+def test_cache_key_changes_with_prompt_version_and_model_id():
+    r = req()
+    assert cache_key(r, "m1") != cache_key(r, "m2")
+    r2 = r.model_copy(update={"prompt_version": "v2"})
+    assert cache_key(r, "m1") != cache_key(r2, "m1")
+    assert cache_key(r, "m1") == cache_key(r.model_copy(), "m1")
+
+
+def test_month_spend_persists_across_gateways(tmp_path):
+    g = gw(tmp_path, env=paid_env(), adapters={"paid": PaidFake()})
+    cost = g.complete(req(text="a")).cost_usd
+    g2 = gw(tmp_path, env=paid_env(), adapters={"paid": PaidFake()})
+    assert g2.store.month_spend(g2._month()) == pytest.approx(cost)
+    assert g2.run_spent_usd == 0.0
+
+
+def test_prod_allow_paid_with_bedrock_stub_releases_reservation(tmp_path):
+    g = gw(tmp_path, env={"MANUVI_PROFILE": "prod", "MANUVI_ALLOW_PAID": "true"})
+    with pytest.raises(NotConfigured):
+        g.complete(req())
+    assert g.store.month_spend(g._month()) == 0.0
+    assert g.job_spent_usd("j1") == 0.0
+    # customer data to bedrock is allowed only via profile opt-in (prod has it)
+    assert g.jobs["j1"].config.customer_data_adapters == ("bedrock",)
+
+
+def test_bedrock_customer_data_blocked_without_profile_opt_in(tmp_path):
+    env = {"MANUVI_MODEL_BULK": "bedrock:placeholder-bulk-model", "MANUVI_ALLOW_PAID": "1"}
+    g = gw(tmp_path, env=env)
+    with pytest.raises(DataClassViolation):
+        g.complete(req(dc="customer"))
+
+
+def test_concurrent_reservations_cannot_both_pass_cap(tmp_path):
+    import threading
+    from src.llm_gateway.cache import SqliteStore
+    store = SqliteStore(tmp_path / "s.db")
+    barrier, results = threading.Barrier(2), []
+
+    def worker():
+        barrier.wait()
+        try:
+            store.reserve([("job:x", 1.0)], 0.6)
+            results.append("ok")
+        except BudgetExceeded:
+            results.append("denied")
+
+    ts = [threading.Thread(target=worker) for _ in range(2)]
+    [t.start() for t in ts]; [t.join() for t in ts]
+    assert sorted(results) == ["denied", "ok"]
+    assert store.spent("job:x") == pytest.approx(0.6)
+
+
+def test_failed_paid_call_releases_reservation(tmp_path):
+    class Boom(PaidFake):
+        def complete(self, req, model_id):
+            raise ServerError("x")
+    g = gw(tmp_path, env=paid_env(), adapters={"paid": Boom()})
+    with pytest.raises(ServerError):
+        g.complete(req())
+    assert g.job_spent_usd("j1") == 0.0
+
+
+def test_connect_error_is_retried(tmp_path):
+    n = {"c": 0}
+
+    def handler(request):
+        n["c"] += 1
+        if n["c"] < 3:
+            raise httpx.ConnectError("refused")
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    g = gw(tmp_path, env={"MANUVI_MODEL_BULK": "ollama:m"},
+           adapters={"ollama": OllamaAdapter(client=client)})
+    assert g.complete(req()).text == "ok" and n["c"] == 3
+
+
+def test_default_cache_path_under_workspace(monkeypatch, tmp_path):
+    import src.llm_gateway.gateway as gm
+    monkeypatch.setattr(gm, "ROOT", tmp_path)
+    Gateway(env={})
+    assert (tmp_path / "workspace" / "llm_cache.sqlite").exists()

@@ -19,3 +19,5 @@ build/
 .DS_Store
 nckh_kha.jpg
 .env
+
+# LLM gateway default response cache lives in workspace/llm_cache.sqlite (ignored via workspace/)

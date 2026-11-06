@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import random
+import uuid
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,7 +13,7 @@ import yaml
 
 from .adapters import Adapter, BedrockAdapter, FakeAdapter, OllamaAdapter, estimate_tokens
 from .cache import SqliteStore, cache_key
-from .config import DEFAULT_PRICES, ParameterReader, ResolvedConfig, resolve_config
+from .config import DEFAULT_PRICES, ROOT, ParameterReader, ResolvedConfig, resolve_config
 from .errors import BudgetExceeded, DataClassViolation, NotConfigured, TransientError
 from .models import LLMRequest, LLMResult
 
@@ -33,13 +35,12 @@ class Job:
     def __init__(self, job_id: str, config: ResolvedConfig):
         self.job_id = job_id
         self.config = config
-        self.spent_usd = 0.0
 
 
 class Gateway:
     def __init__(
         self,
-        cache_path,
+        cache_path=None,
         env: Optional[Mapping[str, str]] = None,
         ssm: Optional[ParameterReader] = None,
         adapters: Optional[dict[str, Adapter]] = None,
@@ -51,7 +52,11 @@ class Gateway:
         rng: Optional[random.Random] = None,
         profiles_path=None,
     ):
+        if cache_path is None:
+            cache_path = ROOT / "workspace" / "llm_cache.sqlite"  # workspace/ is gitignored
+        Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
         self.store = SqliteStore(cache_path)
+        self.run_id = uuid.uuid4().hex
         self._env, self._ssm = env, ssm
         self._profiles_path = profiles_path
         self.adapters = adapters or {}
@@ -59,8 +64,14 @@ class Gateway:
         self.call_log_path = call_log_path
         self.max_retries, self.backoff_base = max_retries, backoff_base
         self._sleep, self._rng = sleep, rng or random.Random()
-        self.run_spent_usd = 0.0
         self.jobs: dict[str, Job] = {}
+
+    @property
+    def run_spent_usd(self) -> float:
+        return self.store.spent(f"run:{self.run_id}")
+
+    def job_spent_usd(self, job_id: str) -> float:
+        return self.store.spent(f"job:{job_id}")
 
     # --- jobs / config -------------------------------------------------
     def start_job(self, job_id: str) -> Job:
@@ -70,14 +81,15 @@ class Gateway:
         return job
 
     def _adapter(self, name: str, cfg: ResolvedConfig) -> Adapter:
+        if name == "bedrock" and name not in self.adapters:
+            # not cached: opt-in depends on the pinned config of the calling job
+            return BedrockAdapter(customer_data="bedrock" in cfg.customer_data_adapters)
         if name in self.adapters:
             return self.adapters[name]
         if name == "fake":
             a = FakeAdapter()
         elif name == "ollama":
             a = OllamaAdapter()
-        elif name == "bedrock":
-            a = BedrockAdapter(allow_paid=cfg.allow_paid)
         else:
             raise NotConfigured(f"adapter {name!r} not available (recorded needs explicit fixture)")
         self.adapters[name] = a
@@ -104,21 +116,25 @@ class Gateway:
                              tokens_out=hit["tokens_out"], cost_usd=0.0, latency_ms=0.0,
                              cache_hit=True, model_id=model_id)
 
+        scopes: list[str] = []
+        reserved = 0.0
         if adapter.paid:
             if not cfg.allow_paid:
                 raise NotConfigured("paid call refused: allow_paid is false")
-            self._check_caps(job, req, model_id)
+            scopes, reserved = self._reserve(job, req, model_id)
 
         t0 = time.perf_counter()
-        out = self._call_with_retries(adapter, req, model_id)
+        try:
+            out = self._call_with_retries(adapter, req, model_id)
+            cost = (self.prices.cost(model_id, out["tokens_in"], out["tokens_out"])
+                    if adapter.paid else 0.0)
+        except BaseException:
+            if scopes:
+                self.store.settle(scopes, reserved, 0.0)  # release
+            raise
         latency = (time.perf_counter() - t0) * 1000
-
-        cost = 0.0
-        if adapter.paid:
-            cost = self.prices.cost(model_id, out["tokens_in"], out["tokens_out"])
-            job.spent_usd += cost
-            self.run_spent_usd += cost
-            self.store.add_spend(self._month(), cost)
+        if scopes:
+            self.store.settle(scopes, reserved, cost)
         self.store.put(key, out["text"], out["tokens_in"], out["tokens_out"], model_id)
         self._log(req, adapter, model_id, cache_hit=False, cost=cost)
         return LLMResult(text=out["text"], tokens_in=out["tokens_in"], tokens_out=out["tokens_out"],
@@ -129,19 +145,16 @@ class Gateway:
     def _month() -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m")
 
-    def _check_caps(self, job: Job, req: LLMRequest, model_id: str) -> None:
+    def _reserve(self, job: Job, req: LLMRequest, model_id: str) -> tuple[list[str], float]:
         cfg = job.config
         est = self.prices.cost(model_id, estimate_tokens(req.messages), req.max_tokens or 1024)
-        checks = (
-            ("run", cfg.cap_run_usd, self.run_spent_usd),
-            ("job", cfg.cap_job_usd, job.spent_usd),
-            ("month", cfg.cap_month_usd, self.store.month_spend(self._month())),
-        )
-        for name, cap, spent in checks:
-            if cap is not None and spent + est > cap:
-                raise BudgetExceeded(
-                    f"{name} cap ${cap:.2f} would be exceeded (spent ${spent:.4f}, est ${est:.4f})"
-                )
+        pairs = [
+            (f"run:{self.run_id}", cfg.cap_run_usd),
+            (f"job:{job.job_id}", cfg.cap_job_usd),
+            (f"month:{self._month()}", cfg.cap_month_usd),
+        ]
+        self.store.reserve(pairs, est)  # atomic check + reserve (BEGIN IMMEDIATE)
+        return [p[0] for p in pairs], est
 
     def _call_with_retries(self, adapter: Adapter, req: LLMRequest, model_id: str) -> dict:
         attempt = 0
@@ -156,7 +169,6 @@ class Gateway:
                 attempt += 1
 
     def _log(self, req, adapter, model_id, cache_hit: bool, cost: float) -> None:
-        import os
         path = self.call_log_path or os.environ.get("MANUVI_LLM_CALL_LOG")
         if not path:
             return

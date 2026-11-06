@@ -8,7 +8,7 @@ from typing import Optional
 import httpx
 
 from .cache import cache_key
-from .errors import CallTimeout, NotConfigured, RecordedMiss, Throttled, ServerError
+from .errors import CallTimeout, NotConfigured, RecordedMiss, ServerError, Throttled, TransientError
 from .models import LLMRequest
 
 
@@ -20,8 +20,8 @@ def estimate_tokens(obj) -> int:
 class Adapter:
     name = "base"
     paid = False
-    # data classes this adapter may receive; free hosted adapters: {"public"}
-    data_classes = frozenset({"public", "customer"})
+    # data classes this adapter may receive; default is public only (opt in explicitly)
+    data_classes = frozenset({"public"})
 
     def complete(self, req: LLMRequest, model_id: str) -> dict:
         """Return {"text", "tokens_in", "tokens_out"}."""
@@ -31,9 +31,8 @@ class Adapter:
 class FakeAdapter(Adapter):
     name = "fake"
 
-    def __init__(self, data_classes=None, paid: bool = False):
-        if data_classes is not None:
-            self.data_classes = frozenset(data_classes)
+    def __init__(self, data_classes=("public", "customer"), paid: bool = False):
+        self.data_classes = frozenset(data_classes)
         self.paid = paid
         self.calls = 0
 
@@ -84,8 +83,8 @@ class OllamaAdapter(Adapter):
         self.base_url = base_url.rstrip("/")
         self.client = client or httpx.Client(timeout=timeout)
         host = httpx.URL(self.base_url).host
-        if host not in ("localhost", "127.0.0.1", "::1"):
-            self.data_classes = frozenset({"public"})
+        if host in ("localhost", "127.0.0.1", "::1"):
+            self.data_classes = frozenset({"public", "customer"})
 
     def complete(self, req, model_id):
         body = {"model": model_id, "messages": req.messages, "temperature": req.temperature}
@@ -97,6 +96,8 @@ class OllamaAdapter(Adapter):
             r = self.client.post(f"{self.base_url}/chat/completions", json=body)
         except httpx.TimeoutException as e:
             raise CallTimeout(str(e)) from e
+        except httpx.TransportError as e:  # ConnectError etc.
+            raise TransientError(f"{type(e).__name__}: {e}") from e
         if r.status_code == 429:
             raise Throttled("429")
         if r.status_code >= 500:
@@ -113,15 +114,15 @@ class OllamaAdapter(Adapter):
 
 
 class BedrockAdapter(Adapter):
-    """Stub: no AWS calls are wired yet."""
+    """Stub: no AWS calls are wired yet. allow_paid is enforced by the gateway only."""
 
     name = "bedrock"
     paid = True
 
-    def __init__(self, allow_paid: bool = False):
-        self.allow_paid = allow_paid
+    def __init__(self, customer_data: bool = False):
+        # customer data must be opted in explicitly (profiles.yaml customer_data_adapters)
+        if customer_data:
+            self.data_classes = frozenset({"public", "customer"})
 
     def complete(self, req, model_id):
-        if not self.allow_paid:
-            raise NotConfigured("bedrock requires allow_paid")
         raise NotConfigured("bedrock adapter is a stub (no boto3 client wired)")
