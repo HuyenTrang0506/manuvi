@@ -1,0 +1,8 @@
+# Fixed EN -> VI forms for signal words. A mismatch between source and target is an Error.
+signal_words:
+  DANGER: "NGUY HIỂM"
+  WARNING: "CẢNH BÁO"
+  CAUTION: "THẬN TRỌNG"
+  NOTE: "LƯU Ý"
+  IMPORTANT: "QUAN TRỌNG"
+# YES/NO are deliberately not here: too ambiguous inside prose ("NO. 5 valve").
