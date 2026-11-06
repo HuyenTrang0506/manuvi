@@ -27,14 +27,31 @@ class ImportResult(BaseModel):
     issues: list[RowIssue] = []
 
 
+_DANGEROUS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _safe(v):
+    """Neutralize formula injection: dangerous strings get a leading ' and are stored as strings."""
+    if isinstance(v, str) and v.startswith(_DANGEROUS):
+        return "'" + v
+    return v
+
+
+def _unsafe(s: str) -> str:
+    return s[1:] if s.startswith("'") and s[1:].startswith(_DANGEROUS) else s
+
+
 def write_terms_xlsx(records: Iterable[TermRecord], path: Path) -> Path:
     wb = Workbook()
     ws = wb.active
     ws.title = "terms"
     ws.append(COLUMNS)
     for r in records:
-        ws.append([r.term_en, r.term_vi, r.status, r.citation, r.confidence, r.approved_by,
-                   "yes" if r.protected else "", r.version])
+        ws.append([_safe(v) for v in (r.term_en, r.term_vi, r.status, r.citation, r.confidence,
+                                      r.approved_by, "yes" if r.protected else "", r.version)])
+        for c in ws[ws.max_row]:
+            if isinstance(c.value, str):
+                c.data_type = "s"
     for col, w in zip("ABCDEFGH", (32, 32, 12, 48, 11, 16, 10, 9)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
@@ -50,7 +67,11 @@ def export_proposed(store: TermStore, path: Path) -> Path:
 
 
 def _s(v) -> str:
-    return "" if v is None else str(v).strip()
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    return _unsafe(str(v).strip())
 
 
 _CODE = {"approved term has no Vietnamese": "missing_vi", "approved term has no citation": "missing_citation",
@@ -59,8 +80,13 @@ _CODE = {"approved term has no Vietnamese": "missing_vi", "approved term has no 
 
 def import_terms_xlsx(store: TermStore, path: Path, reviewer: str = "") -> ImportResult:
     """Import edited workbook as ONE new version. All-or-nothing: any issue -> nothing is written."""
-    ws = load_workbook(path, read_only=True, data_only=True).active
-    rows = list(ws.iter_rows(values_only=True))
+    wb = load_workbook(path, read_only=True, data_only=False)
+    try:
+        cells = list(wb.active.iter_rows())
+    finally:
+        wb.close()
+    formula_rows = {n for n, row in enumerate(cells, start=1) if any(c.data_type == "f" for c in row)}
+    rows = [tuple(c.value for c in row) for row in cells]
     if not rows:
         return ImportResult(ok=False, version=store.version,
                             issues=[RowIssue(row=1, term_en="", code="missing_term", message="empty workbook")])
@@ -81,6 +107,10 @@ def import_terms_xlsx(store: TermStore, path: Path, reviewer: str = "") -> Impor
         if all(v is None or _s(v) == "" for v in row):
             continue
         term_en = _s(cell(row, "term_en"))
+        if n in formula_rows:
+            issues.append(RowIssue(row=n, term_en=term_en, code="formula",
+                                   message="formula cells are not allowed"))
+            continue
         status = _s(cell(row, "status")).lower()
         if status not in STATUSES:
             issues.append(RowIssue(row=n, term_en=term_en, code="bad_status",
@@ -132,7 +162,14 @@ def import_terms_xlsx(store: TermStore, path: Path, reviewer: str = "") -> Impor
         if old and (old.term_vi, old.status, old.citation, old.confidence, old.approved_by, old.protected) == (
                 rec.term_vi, rec.status, rec.citation, rec.confidence, rec.approved_by, rec.protected):
             unchanged += 1
-        else:
-            to_write.append(rec)
+            continue
+        sv = _s(cell(rows[n - 1], "version"))
+        if old and sv.isdigit() and int(sv) < old.version:
+            issues.append(RowIssue(row=n, term_en=rec.term_en, code="stale",
+                                   message=f"sheet version {sv} is older than stored version {old.version}"))
+            continue
+        to_write.append(rec)
+    if issues:
+        return ImportResult(ok=False, version=store.version, issues=issues)
     version = store.commit(to_write) if to_write else store.version
     return ImportResult(ok=True, version=version, applied=len(to_write), unchanged=unchanged)

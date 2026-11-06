@@ -8,6 +8,8 @@ from typing import Iterable, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from src.common.filelock import file_lock
+
 Status = Literal["proposed", "approved", "rejected"]
 STATUSES = ("proposed", "approved", "rejected")
 
@@ -90,14 +92,15 @@ class TermStore:
             raise ValueError("; ".join(problems))
         if not recs:
             return self.version
-        new_version = self.version + 1
-        lines = "".join(
-            r.model_copy(update={"version": new_version}).model_dump_json() + "\n" for r in recs)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        old = self.path.read_text(encoding="utf-8") if self.path.exists() else ""
-        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-        tmp.write_text(old + lines, encoding="utf-8")
-        tmp.replace(self.path)
+        with file_lock(self.path):
+            new_version = self.version + 1
+            lines = "".join(
+                r.model_copy(update={"version": new_version}).model_dump_json() + "\n" for r in recs)
+            old = self.path.read_text(encoding="utf-8") if self.path.exists() else ""
+            tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+            tmp.write_text(old + lines, encoding="utf-8")
+            tmp.replace(self.path)
         return new_version
 
     def propose(self, candidates: Iterable[dict]) -> int:

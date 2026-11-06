@@ -106,3 +106,33 @@ def test_cli_propose(tmp_path):
     assert r.exit_code == 0, r.output
     rows = list(load_workbook(out).active.iter_rows(values_only=True))
     assert len(rows) == 2 and rows[1][0] == "relay" and not rows[1][1] and not rows[1][3]
+
+
+def test_formula_injection_neutralized(tmp_path):
+    s = TermStore(tmp_path / "f.jsonl")
+    s.propose([{"term": "=1+1"}, {"term": "@SUM(A1)"}])
+    x = tmp_path / "f.xlsx"
+    export_proposed(s, x)
+    ws = load_workbook(x).active
+    for r in (2, 3):
+        c = ws.cell(r, 1)
+        assert c.data_type == "s" and c.value.startswith("'")
+    edit(x, lambda ws: fill(ws, {2: ("a", "approved", "c"), 3: ("b", "approved", "c")}))
+    assert import_terms_xlsx(s, x, "qa").ok
+    assert s.get("=1+1").term_vi in ("a", "b") and s.get("@SUM(A1)") is not None  # prefix stripped
+
+
+def test_formula_cell_rejected_and_stale(tmp_path):
+    s = seeded(tmp_path)
+    x = tmp_path / "p.xlsx"
+    export_proposed(s, x)
+    edit(x, lambda ws: ws.cell(2, 2, "=1+1"))
+    res = import_terms_xlsx(s, x, "qa")
+    assert not res.ok and res.issues[0].code == "formula"
+    # stale: store moves on after export
+    export_proposed(s, x)
+    s.commit([TermRecord(term_en="hydraulic pump", term_vi="newer", status="approved", citation="c", approved_by="z")])
+    edit(x, lambda ws: fill(ws, {2: ("old", "approved", "c")}))
+    res = import_terms_xlsx(s, x, "qa")
+    assert not res.ok and any(i.code == "stale" for i in res.issues)
+    assert s.get("hydraulic pump").term_vi == "newer"
