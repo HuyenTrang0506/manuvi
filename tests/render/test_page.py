@@ -45,10 +45,11 @@ def test_prose_ok_and_vector(tmp_path):
 
 def test_overflow_flagged_and_text_complete(tmp_path):
     long = " ".join(["Kiểm tra bộ điều khiển động cơ"] * 30)
-    s = Segment(0, (40, 270, 120, 280), "prose", "x", long)
-    _, out, res = render(tmp_path, [s])
+    s = Segment(0, (40, 100, 120, 110), "prose", "x", long)
+    block = Segment(0, (40, 111, 120, 280), "prose", "y", "chặn")
+    _, out, res = render(tmp_path, [s, block])
     assert res[0].segs[0].overflow
-    rep = build_report(out, [s], res)
+    rep = build_report(out, [s, block], res)
     assert rep["pages"][0]["status"] == "error" and "overflow" in rep["pages"][0]["errors"]
     words = pymupdf.open(out)[0].get_text().split()
     assert words.count("điều") == 30  # nothing truncated
