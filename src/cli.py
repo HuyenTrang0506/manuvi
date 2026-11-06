@@ -43,6 +43,9 @@ from src.translate.mark_diagrams import mark_diagram_chunks
 from src.translate.remap import remap_all
 
 app = typer.Typer(help="Pipeline dịch Shop Manual Kobelco — chương điện")
+from src.intake.cli import intake as _intake_cmd  # noqa: E402
+
+app.command("intake")(_intake_cmd)
 console = Console()
 
 DEFAULT_DOC_ID = "sk70sr-1es"
