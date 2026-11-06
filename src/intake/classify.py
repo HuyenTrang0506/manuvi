@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 import pymupdf
 import yaml
@@ -60,12 +60,15 @@ def classify_page(page: "pymupdf.Page") -> tuple[str, dict[str, int]]:
     return "text", signals
 
 
-def classify_pdf(pdf: Path, overrides: Optional[dict[int, str]] = None) -> list[PageClass]:
+def classify_pdf(pdf: Path, overrides: Optional[dict[int, str]] = None,
+                 pages: Optional[Iterable[int]] = None) -> list[PageClass]:
+    """Classify only `pages` (1-based PDF pages); None means every page."""
     overrides = overrides or {}
     out: list[PageClass] = []
     with pymupdf.open(pdf) as doc:
-        for i in range(doc.page_count):
-            n = i + 1
+        wanted = range(1, doc.page_count + 1) if pages is None else sorted(set(pages))
+        for n in wanted:
+            i = n - 1
             auto, sig = classify_page(doc[i])
             ov = overrides.get(n)
             out.append(PageClass(pdf_page=n, auto=auto, final=ov or auto, override=ov,

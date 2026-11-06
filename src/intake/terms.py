@@ -42,7 +42,7 @@ def extract_terms(pdf: Path, patterns: Optional[list] = None, max_ngram: int = 3
     with pymupdf.open(pdf) as doc:
         for i in range(doc.page_count):
             n = i + 1
-            if pages and n not in pages:
+            if pages is not None and n not in pages:
                 continue
             text = doc[i].get_text("text")
             spans: list[tuple[int, int]] = []
