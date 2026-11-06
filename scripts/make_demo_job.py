@@ -15,7 +15,7 @@ PROSE = [
 ]
 STEPS = [
     ("Disconnect connector YT1234 from the controller.", "Ngắt giắc YT1234 khỏi bộ điều khiển."),
-    ("Measure the resistance between pin 3 and pin 7 of connector YT2210.", "Đo điện trở giữa chân 3 và chân 7 của giắc YT2210."),
+    ("Measure the resistance between pin 3 and pin 7 of connector YT2210.", "Đo điện trở giữa pin 3 và pin 7 của giắc YT2210."),
     ("Tighten the bolt to 45 N·m (see Fig. 12).", "Siết bu lông đến 45 N·m (xem Fig. 12)."),
     ("Remove the cover and check wire YT3305 for damage.", "Tháo nắp và kiểm tra dây YT3305 xem có hư hỏng không."),
 ]
@@ -51,7 +51,7 @@ def main(out: str = "workspace/demo_job") -> None:
     segs[1].update(status="warn", issues=["Terminology: 'air filter' vs glossary"], risk=0.55)
     segs[4].update(status="warn", issues=["Long sentence, check fluency"], risk=0.45)
     segs[7].update(status="error", issues=["Possible mistranslation of 'control valve'"], risk=0.8)
-    segs[13].update(status="error", issues=["Protected code YT2210 missing in target"], target="Đo điện trở giữa chân 3 và chân 7 của giắc.", risk=0.95)
+    segs[13].update(status="error", issues=["Protected code YT2210 missing in target"], target="Đo điện trở giữa pin 3 và pin 7 của giắc.", risk=0.95)
     segs[15].update(status="needs_review", issues=["Value/unit uncertain"], risk=0.6)
     segs[19].update(status="warn", issues=["Fig. reference altered?"], risk=0.5)
     for i, p in enumerate(PROSE * 2):
