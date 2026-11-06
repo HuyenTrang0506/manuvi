@@ -11,7 +11,7 @@ from src.intake.terms import load_patterns
 
 from .store import TermRecord, TermStore
 
-PLACEHOLDER = re.compile(r"⟦P\d{3}⟧")
+PLACEHOLDER = re.compile(r"⟦P[0-9]{3,}⟧")
 _PROTECTED = None
 
 
