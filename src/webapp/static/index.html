@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manuvi review</title>
+<style>
+:root{--bg:#fff;--fg:#1b1f24;--mut:#5b6570;--bd:#c9d1d9;--ac:#0b57d0;--err:#b3261e;--warn:#8a5a00;--ok:#1b6e3c;--sf:#f4f6f8}
+@media (prefers-color-scheme:dark){:root{--bg:#14171a;--fg:#e8eaed;--mut:#9aa4af;--bd:#3a424a;--ac:#8ab4f8;--err:#f2b8b5;--warn:#f0c36d;--ok:#8fd5a6;--sf:#1e2226}}
+body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+header{display:flex;gap:1rem;align-items:center;padding:.5rem 1rem;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+nav a{margin-right:.75rem;color:var(--ac);padding:.25rem .1rem}
+nav a[aria-current=page]{font-weight:700;text-decoration:underline}
+main{padding:1rem;max-width:1200px;margin:auto}
+table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid var(--bd);padding:.35rem .5rem;text-align:left;vertical-align:top}
+tr[aria-selected=true]{outline:2px solid var(--ac);background:var(--sf)}
+.badge{padding:0 .4rem;border:1px solid currentColor;border-radius:4px;font-size:.85em}
+.error,.signal{color:var(--err)}.warn,.needs_review{color:var(--warn)}.ok,.approved{color:var(--ok)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:1rem}@media(max-width:700px){.cols{grid-template-columns:1fr}}
+.box{background:var(--sf);border:1px solid var(--bd);padding:.6rem;white-space:pre-wrap;border-radius:6px;min-height:4em}
+textarea{width:100%;min-height:9em;font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:6px;padding:.5rem;box-sizing:border-box}
+button,select,input{font:inherit;padding:.35rem .7rem;border:1px solid var(--bd);border-radius:6px;background:var(--sf);color:var(--fg)}
+button{cursor:pointer}button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--ac);outline-offset:1px}
+.filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem;align-items:center}
+.bar{height:14px;background:var(--sf);border:1px solid var(--bd);border-radius:7px;overflow:hidden}.bar>div{height:100%;background:var(--ok)}
+#msg{min-height:1.4em;color:var(--mut)}kbd{border:1px solid var(--bd);border-radius:3px;padding:0 .3rem}
+</style>
+</head>
+<body>
+<header><strong>Manuvi review</strong>
+<nav aria-label="Pages"><a href="#/queue">Queue</a><a href="#/terms">Terms</a><a href="#/status">Status</a><a href="#/audit">Audit</a></nav>
+<span id="msg" role="status" aria-live="polite"></span></header>
+<main id="main" tabindex="-1"></main>
+<script>
+const $=s=>document.querySelector(s), main=$('#main');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const say=t=>{$('#msg').textContent=t};
+async function api(path,opt){const r=await fetch(path,opt&&{method:opt.method,headers:{'Content-Type':'application/json'},body:JSON.stringify(opt.body)});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||r.status);return j}
+let rows=[],sel=0,cur=null,filters={decision:'pending'};
+
+function route(){const h=location.hash||'#/queue';
+  document.querySelectorAll('nav a').forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')===h.split('/').slice(0,2).join('/')) || a.removeAttribute('aria-current'));
+  document.querySelectorAll('nav a').forEach(a=>{if(a.hasAttribute('aria-current'))a.setAttribute('aria-current','page')});
+  const p=h.slice(2).split('/');
+  ({queue:viewQueue,seg:()=>viewSeg(p[1]),terms:viewTerms,status:viewStatus,audit:viewAudit}[p[0]]||viewQueue)();}
+addEventListener('hashchange',route);
+
+async function viewQueue(){
+  const qs=new URLSearchParams(Object.entries(filters).filter(([,v])=>v));
+  const secs=await api('/api/sections');rows=await api('/api/queue?'+qs);sel=Math.min(sel,Math.max(rows.length-1,0));
+  const opt=(n,vals)=>`<select id="f-${n}" aria-label="${n}"><option value="">${n}: any</option>${vals.map(v=>`<option ${filters[n]===v?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
+  main.innerHTML=`<h1>Review queue (${rows.length})</h1><div class="filters">
+  ${opt('status',['error','needs_review','warn','ok'])}${opt('kind',['signal','step','prose','table','label'])}${opt('section',secs)}${opt('decision',['pending','approved','rejected'])}
+  <input id="f-q" placeholder="search text" aria-label="search" value="${esc(filters.q||'')}">
+  <button id="bulk">Bulk approve selected (not safety)</button></div>
+  <p>Keys: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>Enter</kbd> open. Safety (signal) segments are never bulk-approved.</p>
+  <table><thead><tr><th><span class="sr">sel</span></th><th>ID</th><th>Page</th><th>Kind</th><th>Status</th><th>Risk</th><th>Decision</th><th>Source</th></tr></thead><tbody>
+  ${rows.map((r,i)=>`<tr data-i="${i}" aria-selected="${i===sel}"><td><input type="checkbox" data-id="${esc(r.id)}" aria-label="select ${esc(r.id)}"></td>
+  <td><a href="#/seg/${encodeURIComponent(r.id)}">${esc(r.id)}</a></td><td>${r.page}</td><td class="${r.kind==='signal'?'signal':''}">${esc(r.kind)}</td>
+  <td class="${r.status}">${esc(r.status)}</td><td>${(+r.risk).toFixed(2)}</td><td class="${r.decision}">${esc(r.decision)}</td><td>${esc(r.source)}</td></tr>`).join('')}</tbody></table>`;
+  for(const n of ['status','kind','section','decision'])$('#f-'+n).onchange=e=>{filters[n]=e.target.value;sel=0;viewQueue()};
+  $('#f-q').onchange=e=>{filters.q=e.target.value;sel=0;viewQueue()};
+  $('#bulk').onclick=async()=>{const ids=[...document.querySelectorAll('input[data-id]:checked')].map(c=>c.dataset.id);
+    if(!ids.length)return say('Nothing selected.');const r=await api('/api/bulk-approve',{method:'POST',body:{ids}});
+    say(`Approved ${r.approved.length}; skipped ${r.skipped.length} (safety/error/protected codes need individual review).`);viewQueue()};
+}
+function moveSel(d){if(!rows.length)return;sel=Math.max(0,Math.min(rows.length-1,sel+d));
+  document.querySelectorAll('tbody tr').forEach((tr,i)=>{tr.setAttribute('aria-selected',i===sel);if(i===sel)tr.scrollIntoView({block:'nearest'})})}
+
+async function viewSeg(id){
+  cur=await api('/api/segments/'+encodeURIComponent(id));const s=cur;
+  main.innerHTML=`<p><a href="#/queue">&larr; Queue</a> | ${s.prev?`<a href="#/seg/${encodeURIComponent(s.prev)}">prev</a>`:'prev'} | ${s.next?`<a href="#/seg/${encodeURIComponent(s.next)}">next</a>`:'next'}</p>
+  <h1>${esc(s.id)} <span class="badge ${s.status}">${esc(s.status)}</span> <span class="badge ${s.kind==='signal'?'signal':''}">${esc(s.kind)}</span> <span class="badge ${s.decision}">${esc(s.decision)}</span></h1>
+  <p>Page ${s.page}, section ${esc(s.section)}, risk ${(+s.risk).toFixed(2)}</p>
+  ${s.kind==='signal'?'<p class="signal" role="alert"><strong>Safety block.</strong> Must be approved individually by a human. Check every word and number.</p>':''}
+  ${s.issues.length?`<h2>Issues</h2><ul>${s.issues.map(i=>`<li>${esc(typeof i==='string'?i:JSON.stringify(i))}</li>`).join('')}</ul>`:''}
+  <div class="cols"><section><h2 id="hs">Source (EN)</h2><div class="box" aria-labelledby="hs">${esc(s.source)}</div></section>
+  <section><h2><label for="tgt">Target (VI), editable</label></h2><textarea id="tgt">${esc(s.target)}</textarea>
+  <button id="save">Save edit</button></section></div>
+  <p><button id="b-a">Approve (a)</button> <button id="b-r">Reject (r)</button> <button id="b-n">Needs review (n)</button></p>
+  <p>Keys: <kbd>a</kbd> approve, <kbd>r</kbd> reject, <kbd>n</kbd> needs review, <kbd>j</kbd>/<kbd>k</kbd> next/prev. Shortcuts are off while typing.</p>`;
+  $('#save').onclick=saveEdit;$('#b-a').onclick=()=>decide('approve');$('#b-r').onclick=()=>decide('reject');$('#b-n').onclick=()=>decide('needs_review');
+}
+async function saveEdit(){await api('/api/segments/'+encodeURIComponent(cur.id),{method:'PUT',body:{target:$('#tgt').value}});say('Edit saved.');viewSeg(cur.id)}
+async function decide(action){
+  try{if($('#tgt').value!==cur.target)await saveEdit0();
+    await api(`/api/segments/${encodeURIComponent(cur.id)}/decision`,{method:'POST',body:{action,explicit:true}});
+    say(`${cur.id}: ${action}`);if(cur.next)location.hash='#/seg/'+encodeURIComponent(cur.next);else viewSeg(cur.id)}
+  catch(e){say('Blocked: '+e.message)}}
+async function saveEdit0(){await api('/api/segments/'+encodeURIComponent(cur.id),{method:'PUT',body:{target:$('#tgt').value}})}
+
+async function viewTerms(){const t=await api('/api/terms');
+  main.innerHTML=`<h1>Candidate terms (${t.length})</h1><table><thead><tr><th>EN</th><th>VI</th><th>Decision</th><th>Actions</th></tr></thead><tbody>
+  ${t.map(x=>`<tr><td>${esc(x.en)}</td><td><input data-vi="${esc(x.id)}" value="${esc(x.vi)}" aria-label="VI for ${esc(x.en)}"></td><td class="${x.decision}">${esc(x.decision)}</td>
+  <td><button data-t="${esc(x.id)}" data-a="approve">Approve</button> <button data-t="${esc(x.id)}" data-a="edit">Save edit</button> <button data-t="${esc(x.id)}" data-a="reject">Reject</button></td></tr>`).join('')}</tbody></table>`;
+  main.querySelectorAll('button[data-t]').forEach(b=>b.onclick=async()=>{const id=b.dataset.t;
+    await api('/api/terms/'+encodeURIComponent(id),{method:'POST',body:{action:b.dataset.a,vi:main.querySelector(`input[data-vi="${CSS.escape(id)}"]`).value}});viewTerms()})}
+
+async function viewStatus(){const s=await api('/api/status');
+  main.innerHTML=`<h1>Status</h1><p>Progress: ${(s.progress*100).toFixed(0)}% decided (${s.total-s.by_decision.pending}/${s.total})</p>
+  <div class="bar" role="progressbar" aria-valuenow="${Math.round(s.progress*100)}" aria-valuemin="0" aria-valuemax="100"><div style="width:${s.progress*100}%"></div></div>
+  <h2>By status</h2><ul>${Object.entries(s.by_status).map(([k,v])=>`<li>${k}: ${v}</li>`).join('')}</ul>
+  <h2>By decision</h2><ul>${Object.entries(s.by_decision).map(([k,v])=>`<li>${k}: ${v}</li>`).join('')}</ul>
+  <p>Safety blocks approved: ${s.safety_approved}/${s.safety_total}. Terms pending: ${s.terms_pending}.</p>
+  <p>Cost: $${s.cost_usd.toFixed(2)} (${s.profile} profile, placeholder)</p>`}
+
+async function viewAudit(){const a=await api('/api/audit');
+  main.innerHTML=`<h1>Audit log</h1><table><thead><tr><th>Time</th><th>Action</th><th>Item</th><th>Old</th><th>New</th></tr></thead><tbody>
+  ${a.map(x=>`<tr><td>${esc(x.ts)}</td><td>${esc(x.action)}</td><td>${esc(x.id)}</td><td>${esc(JSON.stringify(x.old))}</td><td>${esc(JSON.stringify(x.new))}</td></tr>`).join('')}</tbody></table>`}
+
+addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+  const inSeg=location.hash.startsWith('#/seg/');
+  if(e.key==='j'||e.key==='k'){const d=e.key==='j'?1:-1;
+    if(inSeg){const t=d>0?cur.next:cur.prev;if(t)location.hash='#/seg/'+encodeURIComponent(t)}else moveSel(d)}
+  else if(!inSeg&&e.key==='Enter'&&rows[sel])location.hash='#/seg/'+encodeURIComponent(rows[sel].id);
+  else if(inSeg&&{a:'approve',r:'reject',n:'needs_review'}[e.key])decide({a:'approve',r:'reject',n:'needs_review'}[e.key]);
+});
+route();
+</script>
+</body></html>
