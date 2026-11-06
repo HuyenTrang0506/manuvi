@@ -26,7 +26,7 @@ JSON list, one object per processed chunk (schema: `src/pipeline/schema.py`, cla
   - `needs_review`: a deterministic QA error survived 2 fix attempts, a chunk could not be masked, or the chunk is a safety (`signal`) segment. Signal segments are never `ok` from the pipeline; the human decides in the app.
   - `error`: the gateway failed for this chunk (no target).
 - `kind`: `prose | step | signal | table | label`. A signal word (DANGER, WARNING, CAUTION, NOTE, IMPORTANT) in the source forces `signal`.
-- `issues`: strings `"RULE_ID: message"` from `guard.qa_check` (plus `MASK001`, `GW001`, `SAFETY`).
+- `issues`: strings `"RULE_ID: message"` from `guard.qa_check` (plus `MASK001`, `GW001` (error type only, never provider text), `SAFETY`).
 - `risk`: 0 to 1, from kind, issue counts and status.
 - `decision`, `_pv`: added by the pipeline for the app. `_pv` is the segment version in `job.sqlite`. On every export, an entry whose `_pv` still matches is kept exactly as the app left it (decisions, human edits); a re-run bumps the version, so that entry is replaced and reset to `decision: pending`.
 - Chunks not yet processed (waiting at a gate, budget stop) are absent; `status` reports them as `pending`.
@@ -36,8 +36,8 @@ JSON list, one object per processed chunk (schema: `src/pipeline/schema.py`, cla
 `load -> classify -> pick -> mask -> prompt -> translate -> unmask -> qa -> (fix -> unmask -> qa) x2 -> record -> gate -> pick ... -> finalize`.
 
 - Fix attempts use alias `strong` only when the profile allows paid calls (or `allow_strong` is set); otherwise they re-prompt `bulk` with the QA `fix_hint`.
-- The gate interrupts after each safety segment (always) and after every `batch_size` chunks. `--approve-batches` auto-approves batch gates; safety gates need `--approve-safety`, which stands for an explicit human act. Exit codes: 0 done, 3 waiting at a gate, 4 budget cap reached.
-- Resume: run the same command again (same job dir). The ledger key is `(job, chunk, g<generation>:<stage>)`; a billed key is reused, never sent again. Known gap: a call charged by the provider but killed before the ledger write cannot be seen (see `spikes/sp05_resume/REPORT.md`).
+- The gate interrupts after each safety segment (always) and after every `batch_size` chunks. `--approve-batches` auto-approves batch gates; a safety gate opens only when `segments.json` has `decision == "approved"` for that chunk (recorded by the web app on an explicit click); there is no CLI flag for it (only `demo` auto-approves). Writes to `segments.json` take `src.common.filelock.file_lock`. Exit codes: 0 done, 3 waiting at a gate, 4 budget cap reached.
+- Resume: run the same command again (same job dir). The ledger key is `(job, chunk, g<generation>:<stage>)`; a billed key is reused, never sent again. A `started` row is written before each gateway call; if a process dies between the call and the `billed` row, the next run finds `started` without a result, does not re-send, and marks the segment `needs_review` (`LEDGER001`). A re-run of that chunk bills it again on purpose. The provider may still have charged it; provider idempotency keys are not verified (see `spikes/sp05_resume/REPORT.md`).
 - Budget: `--budget USD` sets the job cap in the gateway; `BudgetExceeded` stops the run with the checkpoint at the failing node, so a run with a higher cap continues from there.
 - Re-run: `rerun --pages 3,4` or `rerun --failed` bumps the generation of the selected chunks (new ledger keys, new prompt version `pipe-v1.rN`, so no cache hit) and runs only them in thread `<job>#rN`.
 

@@ -60,7 +60,7 @@ def run_job(
     job_id: Optional[str] = None,
     batch_size: int = 10,
     approve_batches: bool = False,
-    approve_safety: bool = False,
+    approve_safety: bool = False,  # demo/tests only; the CLI never sets it except in `demo`
     only: Optional[list[str]] = None,
     budget_usd: Optional[float] = None,
     allow_strong: Optional[bool] = None,
@@ -119,9 +119,12 @@ def run_job(
         while True:
             if payload is not None:
                 reasons = payload["reasons"]
-                ok = approve_safety if "safety" in reasons else approve_batches
+                # Safety gates open only after a human approved that segment in the web app
+                # (segments.json decision == "approved"). `approve_safety` is for the demo/tests only.
+                safety_ok = approve_safety or db.human_approved(payload["chunk_id"])
+                ok = safety_ok if "safety" in reasons else approve_batches
                 if "safety" in reasons and "batch" in reasons:
-                    ok = approve_safety and approve_batches
+                    ok = safety_ok and approve_batches
                 if not ok:
                     db.export_segments()
                     db.set_meta("state", "waiting")

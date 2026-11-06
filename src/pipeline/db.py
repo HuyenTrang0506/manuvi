@@ -8,6 +8,8 @@ import time
 from pathlib import Path
 from typing import Callable, Optional
 
+from ..common.filelock import file_lock
+
 from .schema import CHUNKS_FILE, DB_FILE, LEDGER_FILE, SEGMENTS_FILE, Chunk, Segment
 
 
@@ -105,26 +107,40 @@ class JobDB:
         """Write segments.json. Entries already exported at the same version are kept as the web
         app left them (decisions, human edits); re-run segments are replaced and reset to pending."""
         path = self.dir / SEGMENTS_FILE
-        existing: dict[str, dict] = {}
-        if path.exists():
-            existing = {s["id"]: s for s in json.loads(path.read_text("utf-8"))}
-        out = []
-        for seg, version in self.segments():
-            prev = existing.get(seg.id)
-            if prev is not None and prev.get("_pv") == version:
-                out.append(prev)
-                continue
-            d = seg.model_dump()
-            d["decision"] = "pending"
-            d["_pv"] = version
-            out.append(d)
-        tmp = path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(out, ensure_ascii=False, indent=1), "utf-8")
-        os.replace(tmp, path)
+        with file_lock(path):
+            existing: dict[str, dict] = {}
+            if path.exists():
+                existing = {s["id"]: s for s in json.loads(path.read_text("utf-8"))}
+            out = []
+            for seg, version in self.segments():
+                prev = existing.get(seg.id)
+                if prev is not None and prev.get("_pv") == version:
+                    out.append(prev)
+                    continue
+                d = seg.model_dump()
+                d["decision"] = "pending"
+                d["_pv"] = version
+                out.append(d)
+            tmp = path.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(out, ensure_ascii=False, indent=1), "utf-8")
+            os.replace(tmp, path)
         return path
+
+    def human_approved(self, cid: str) -> bool:
+        """True when the web app recorded decision == 'approved' for this segment (explicit human click)."""
+        path = self.dir / SEGMENTS_FILE
+        with file_lock(path):
+            if not path.exists():
+                return False
+            return any(s["id"] == cid and s.get("decision") == "approved"
+                       for s in json.loads(path.read_text("utf-8")))
 
     def close(self) -> None:
         self.conn.close()
+
+
+class InFlightUnknown(Exception):
+    """A call was started but never recorded (crash in between). Not re-sent automatically."""
 
 
 class Ledger:
@@ -160,6 +176,10 @@ class Ledger:
             return None
         return dict(zip(("text", "tokens_in", "tokens_out", "cost_usd", "cache_hit", "latency_ms", "model_id"), row))
 
+    def _mark(self, outcome: str, chunk: str, stage: str) -> None:
+        self._record(chunk, stage, outcome, {"text": "", "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0,
+                                             "cache_hit": 0, "latency_ms": 0.0, "model_id": ""})
+
     def _record(self, chunk: str, stage: str, outcome: str, r: dict) -> None:
         self.conn.execute(
             "INSERT INTO calls (job_id, chunk, stage, outcome, text, tokens_in, tokens_out, cost_usd, "
@@ -176,7 +196,16 @@ class Ledger:
                 self._record(chunk, stage, "reused", cached)
                 self.emit(f"REUSED chunk={chunk} stage={stage}")
                 return cached, "reused"
-        res = call()  # the billed event
+            if self.conn.execute("SELECT 1 FROM calls WHERE job_id=? AND chunk=? AND stage=? AND outcome='started'",
+                                 (self.job_id, chunk, stage)).fetchone():
+                raise InFlightUnknown(f"{chunk}/{stage}")
+        self._mark("started", chunk, stage)
+        try:
+            res = call()  # the billed event
+        except BaseException:
+            self.conn.execute("DELETE FROM calls WHERE job_id=? AND chunk=? AND stage=? AND outcome='started'",
+                              (self.job_id, chunk, stage))  # failed cleanly: safe to retry
+            raise
         self._record(chunk, stage, "billed", res)
         self.emit(f"BILLED chunk={chunk} stage={stage}")
         if self.stall_at == (chunk, stage):
