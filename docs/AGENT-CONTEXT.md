@@ -15,3 +15,6 @@ Manuvi translates technical manuals EN -> VI and keeps layout, codes and figures
 
 ## Definition of done (short)
 Acceptance criteria covered by tests, all tests pass offline, protected-code tests pass, no customer data in the diff, PR opened with the checklist in `.github/pull_request_template.md`.
+
+## Roles and skills
+See `docs/TEAM-ROLES.md`. Before your first task, list and read the skills that fit your role; record the ones you used in the PR description.
