@@ -1,0 +1,8 @@
+# Regex patterns for protected codes. Matches are never translated.
+protected_patterns:
+  - name: harness_code
+    regex: '\bYT\d{2}[A-Z0-9\-]*'
+  - name: part_number
+    regex: '\b[A-Z]{1,3}\d{2,}-\d{2,}[A-Z0-9\-]*'
+  - name: long_numeric_part
+    regex: '\b\d{2,}[A-Z]\d{3,}[A-Z0-9\-]*'
