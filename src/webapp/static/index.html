@@ -32,10 +32,11 @@ button{cursor:pointer}button:focus-visible,a:focus-visible,textarea:focus-visibl
 <span id="msg" role="status" aria-live="polite"></span></header>
 <main id="main" tabindex="-1"></main>
 <script>
+const TOKEN='__MANUVI_TOKEN__';
 const $=s=>document.querySelector(s), main=$('#main');
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const say=t=>{$('#msg').textContent=t};
-async function api(path,opt){const r=await fetch(path,opt&&{method:opt.method,headers:{'Content-Type':'application/json'},body:JSON.stringify(opt.body)});
+async function api(path,opt){const r=await fetch(path,opt?{method:opt.method,headers:{'Content-Type':'application/json','X-Manuvi-Token':TOKEN},body:JSON.stringify(opt.body)}:{headers:{'X-Manuvi-Token':TOKEN}});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||r.status);return j}
 let rows=[],sel=0,cur=null,filters={decision:'pending'};
 
@@ -57,8 +58,8 @@ async function viewQueue(){
   <p>Keys: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>Enter</kbd> open. Safety (signal) segments are never bulk-approved.</p>
   <table><thead><tr><th><span class="sr">sel</span></th><th>ID</th><th>Page</th><th>Kind</th><th>Status</th><th>Risk</th><th>Decision</th><th>Source</th></tr></thead><tbody>
   ${rows.map((r,i)=>`<tr data-i="${i}" aria-selected="${i===sel}"><td><input type="checkbox" data-id="${esc(r.id)}" aria-label="select ${esc(r.id)}"></td>
-  <td><a href="#/seg/${encodeURIComponent(r.id)}">${esc(r.id)}</a></td><td>${r.page}</td><td class="${r.kind==='signal'?'signal':''}">${esc(r.kind)}</td>
-  <td class="${r.status}">${esc(r.status)}</td><td>${(+r.risk).toFixed(2)}</td><td class="${r.decision}">${esc(r.decision)}</td><td>${esc(r.source)}</td></tr>`).join('')}</tbody></table>`;
+  <td><a href="#/seg/${encodeURIComponent(r.id)}">${esc(r.id)}</a></td><td>${esc(r.page)}</td><td class="${r.kind==='signal'?'signal':''}">${esc(r.kind)}</td>
+  <td class="${esc(r.status)}">${esc(r.status)}</td><td>${(+r.risk).toFixed(2)}</td><td class="${esc(r.decision)}">${esc(r.decision)}</td><td>${esc(r.source)}</td></tr>`).join('')}</tbody></table>`;
   for(const n of ['status','kind','section','decision'])$('#f-'+n).onchange=e=>{filters[n]=e.target.value;sel=0;viewQueue()};
   $('#f-q').onchange=e=>{filters.q=e.target.value;sel=0;viewQueue()};
   $('#bulk').onclick=async()=>{const ids=[...document.querySelectorAll('input[data-id]:checked')].map(c=>c.dataset.id);
@@ -71,8 +72,8 @@ function moveSel(d){if(!rows.length)return;sel=Math.max(0,Math.min(rows.length-1
 async function viewSeg(id){
   cur=await api('/api/segments/'+encodeURIComponent(id));const s=cur;
   main.innerHTML=`<p><a href="#/queue">&larr; Queue</a> | ${s.prev?`<a href="#/seg/${encodeURIComponent(s.prev)}">prev</a>`:'prev'} | ${s.next?`<a href="#/seg/${encodeURIComponent(s.next)}">next</a>`:'next'}</p>
-  <h1>${esc(s.id)} <span class="badge ${s.status}">${esc(s.status)}</span> <span class="badge ${s.kind==='signal'?'signal':''}">${esc(s.kind)}</span> <span class="badge ${s.decision}">${esc(s.decision)}</span></h1>
-  <p>Page ${s.page}, section ${esc(s.section)}, risk ${(+s.risk).toFixed(2)}</p>
+  <h1>${esc(s.id)} <span class="badge ${esc(s.status)}">${esc(s.status)}</span> <span class="badge ${s.kind==='signal'?'signal':''}">${esc(s.kind)}</span> <span class="badge ${esc(s.decision)}">${esc(s.decision)}</span></h1>
+  <p>Page ${esc(s.page)}, section ${esc(s.section)}, risk ${(+s.risk).toFixed(2)}</p>
   ${s.kind==='signal'?'<p class="signal" role="alert"><strong>Safety block.</strong> Must be approved individually by a human. Check every word and number.</p>':''}
   ${s.issues.length?`<h2>Issues</h2><ul>${s.issues.map(i=>`<li>${esc(typeof i==='string'?i:JSON.stringify(i))}</li>`).join('')}</ul>`:''}
   <div class="cols"><section><h2 id="hs">Source (EN)</h2><div class="box" aria-labelledby="hs">${esc(s.source)}</div></section>
@@ -85,14 +86,14 @@ async function viewSeg(id){
 async function saveEdit(){await api('/api/segments/'+encodeURIComponent(cur.id),{method:'PUT',body:{target:$('#tgt').value}});say('Edit saved.');viewSeg(cur.id)}
 async function decide(action){
   try{if($('#tgt').value!==cur.target)await saveEdit0();
-    await api(`/api/segments/${encodeURIComponent(cur.id)}/decision`,{method:'POST',body:{action,explicit:true}});
+    await api(`/api/segments/${encodeURIComponent(cur.id)}/decision`,{method:'POST',body:{action,nonce:cur.nonce}});
     say(`${cur.id}: ${action}`);if(cur.next)location.hash='#/seg/'+encodeURIComponent(cur.next);else viewSeg(cur.id)}
   catch(e){say('Blocked: '+e.message)}}
 async function saveEdit0(){await api('/api/segments/'+encodeURIComponent(cur.id),{method:'PUT',body:{target:$('#tgt').value}})}
 
 async function viewTerms(){const t=await api('/api/terms');
   main.innerHTML=`<h1>Candidate terms (${t.length})</h1><table><thead><tr><th>EN</th><th>VI</th><th>Decision</th><th>Actions</th></tr></thead><tbody>
-  ${t.map(x=>`<tr><td>${esc(x.en)}</td><td><input data-vi="${esc(x.id)}" value="${esc(x.vi)}" aria-label="VI for ${esc(x.en)}"></td><td class="${x.decision}">${esc(x.decision)}</td>
+  ${t.map(x=>`<tr><td>${esc(x.en)}</td><td><input data-vi="${esc(x.id)}" value="${esc(x.vi)}" aria-label="VI for ${esc(x.en)}"></td><td class="${esc(x.decision)}">${esc(x.decision)}</td>
   <td><button data-t="${esc(x.id)}" data-a="approve">Approve</button> <button data-t="${esc(x.id)}" data-a="edit">Save edit</button> <button data-t="${esc(x.id)}" data-a="reject">Reject</button></td></tr>`).join('')}</tbody></table>`;
   main.querySelectorAll('button[data-t]').forEach(b=>b.onclick=async()=>{const id=b.dataset.t;
     await api('/api/terms/'+encodeURIComponent(id),{method:'POST',body:{action:b.dataset.a,vi:main.querySelector(`input[data-vi="${CSS.escape(id)}"]`).value}});viewTerms()})}
