@@ -63,17 +63,29 @@ def parse_sections(spec: str) -> list[SectionRange]:
     return out
 
 
-def read_page_labels(doc: "pymupdf.Document") -> tuple[dict[str, list[int]], list[int]]:
-    """Return ({label: [pdf pages]}, ambiguous_pages) from header/footer bands."""
+def read_page_labels(doc: "pymupdf.Document", sections: "set[str] | None" = None) -> tuple[dict[str, list[int]], list[int]]:
+    """Return ({label: [pdf pages]}, ambiguous_pages) from header/footer bands.
+
+    If `sections` is given, only labels of those sections count (wiring diagrams carry
+    unrelated numbers such as "11-21" in their footer band).
+    """
     labels: dict[str, list[int]] = defaultdict(list)
     ambiguous: list[int] = []
     for i in range(doc.page_count):
         page = doc[i]
         h, w = page.rect.height, page.rect.width
         found: set[str] = set()
+        # Header/footer band by clip; fall back to stand-alone blocks anywhere on the page
+        # (rotated wiring pages place the label outside the nominal page rectangle).
         for clip in (pymupdf.Rect(0, 0, w, h * ZONE), pymupdf.Rect(0, h * (1 - ZONE), w, h)):
             for m in LABEL_RX.finditer(page.get_text("text", clip=clip)):
-                found.add(f"{m.group(1)}-{m.group(2)}")
+                if sections is None or m.group(1) in sections:
+                    found.add(f"{m.group(1)}-{m.group(2)}")
+        if not found and sections is not None:
+            for blk in page.get_text("blocks"):
+                m = LABEL_RX.fullmatch(blk[4].strip())
+                if m and m.group(1) in sections:
+                    found.add(f"{m.group(1)}-{m.group(2)}")
         if len(found) == 1:
             labels[found.pop()].append(i + 1)
         elif len(found) > 1:
@@ -115,7 +127,7 @@ def _resolve(doc, secs: list[SectionRange], page_map: Optional[Path]) -> tuple[s
             s.pdf_pages = [base + (p - 1) for p in range(s.start, s.end + 1)]
         mode, review = "page_map", False
     else:
-        labels, ambiguous = read_page_labels(doc)
+        labels, ambiguous = read_page_labels(doc, {s.section for s in secs})
         if labels:
             if ambiguous:
                 warnings.append(f"Pages with several distinct labels ignored: {_ranges(ambiguous)}")

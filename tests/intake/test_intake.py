@@ -156,3 +156,15 @@ def test_deterministic(pdf, tmp_path):
         outs.append({f: (d / f).read_bytes() for f in ("jobspec.json", "page_classes.json", "terms.json")})
     assert outs[0] == outs[1]
     assert json.loads(outs[0]["jobspec.json"])["scanned_pages"] == [4]
+
+
+def test_labels_ignore_other_sections_in_footer(tmp_path):
+    import pymupdf
+    from src.intake.jobspec import read_page_labels
+
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((300, 825), "23-4", fontsize=9)
+    page.insert_text((100, 820), "11-21", fontsize=9)  # wire label in the footer band
+    labels, ambiguous = read_page_labels(doc, {"23"})
+    assert labels == {"23-4": [1]} and ambiguous == []
