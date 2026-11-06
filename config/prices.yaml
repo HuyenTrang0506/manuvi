@@ -1,0 +1,18 @@
+# Placeholder prices (USD per 1K tokens). Replace with real values before any paid use.
+# Free adapters (fake/recorded/ollama) cost 0 and need no entry.
+models:
+  placeholder-bulk-model:
+    input_per_1k: 0.0005
+    output_per_1k: 0.0015
+    source: "PLACEHOLDER - fill from provider pricing page"
+    date: "1970-01-01"
+  placeholder-strong-model:
+    input_per_1k: 0.003
+    output_per_1k: 0.015
+    source: "PLACEHOLDER - fill from provider pricing page"
+    date: "1970-01-01"
+  placeholder-vision-model:
+    input_per_1k: 0.003
+    output_per_1k: 0.015
+    source: "PLACEHOLDER - fill from provider pricing page"
+    date: "1970-01-01"
