@@ -1,6 +1,7 @@
 """BL-US-18: deterministic QA checks plus a capped fix loop."""
 from __future__ import annotations
 
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Callable
@@ -23,6 +24,7 @@ class QAContext:
 
 def qa_check(source: str, target: str, ctx: QAContext | None = None) -> list[Issue]:
     ctx = ctx or QAContext()
+    target = unicodedata.normalize("NFC", target)
     issues: list[Issue] = []
     if ctx.mapping is not None:
         rep = check_placeholders(target, ctx.mapping)

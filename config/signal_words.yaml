@@ -5,5 +5,4 @@ signal_words:
   CAUTION: "THẬN TRỌNG"
   NOTE: "LƯU Ý"
   IMPORTANT: "QUAN TRỌNG"
-  "YES": "CÓ"
-  "NO": "KHÔNG"
+# YES/NO are deliberately not here: too ambiguous inside prose ("NO. 5 valve").

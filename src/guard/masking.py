@@ -12,7 +12,7 @@ from pydantic import BaseModel
 log = logging.getLogger("manuvi.guard.mask")
 
 DEFAULT_PATTERNS = Path(__file__).resolve().parent.parent / "intake" / "patterns.yaml"
-PLACEHOLDER_RE = re.compile(r"⟦P\d{3,}⟧")
+PLACEHOLDER_RE = re.compile(r"⟦P[0-9]{3,}⟧")
 
 PatternSpec = tuple[str, "str | Pattern[str]"]
 

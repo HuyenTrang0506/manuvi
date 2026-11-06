@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from src.guard import (QAContext, Severity, check_placeholders, diff_numbers, fix_loop,
+from src.guard import (is_signal, QAContext, Severity, check_placeholders, diff_numbers, fix_loop,
                        load_signal_table, mask, qa_check, signal_mismatches, unmask)
 
 CODES = ["YT12-AB3C", "YT 12-AB3C", "YT12-\nAB3C", "YT12.AB3C", "AB12-3456X", "pin 7", "Terminal No. 12",
@@ -100,3 +100,27 @@ def test_fix_loop_cap_and_success():
     calls.clear()
     r = fix_loop(src, "Dùng YT12-AB3C", None, never)
     assert r.attempts == 0 and not calls
+
+
+def test_nfd_target_normalized():
+    import unicodedata
+    nfd = unicodedata.normalize("NFD", "CẢNH BÁO: nóng")
+    assert nfd != "CẢNH BÁO: nóng"
+    assert [i.severity for i in qa_check("WARNING: hot", nfd)] == [Severity.ok]
+
+
+def test_signal_case_insensitive_and_is_signal():
+    assert [i.severity for i in qa_check("Warning: hot", "Cảnh báo: nóng")] == [Severity.ok]
+    assert any(i.rule_id == "SIG001" for i in qa_check("Note: x", "Lưu ý khác"[:0] + "x"))
+    assert is_signal("Caution: sharp") and is_signal("note - x") and is_signal("CẢNH BÁO")
+    assert not is_signal("Replace the note holder")
+
+
+def test_yes_no_not_signals():
+    ok = qa_check("Valve NO. 5 is open", "Van số NO. 5 mở")
+    assert not any(i.rule_id == "SIG001" for i in ok)
+
+
+def test_mask_adjacent_to_letters():
+    m, mp = mask("bịYT1234 và")
+    assert "YT1234" in mp.values() and unmask(m, mp) == "bịYT1234 và"

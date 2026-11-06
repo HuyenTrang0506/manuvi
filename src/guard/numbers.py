@@ -8,7 +8,7 @@ from typing import Iterable
 from .masking import PLACEHOLDER_RE, PatternSpec, mask
 
 NUMBER_POLICY = "keep_source"
-NUMBER_RE = re.compile(r"(?<!\d)\d+(?:[.,]\d+)*")
+NUMBER_RE = re.compile(r"(?<![0-9])[0-9]+(?:[.,][0-9]+)*")
 
 
 def extract_numbers(text: str, patterns: Iterable[PatternSpec] | None = None) -> list[str]:
