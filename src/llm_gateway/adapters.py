@@ -53,6 +53,7 @@ class RecordedAdapter(Adapter):
     """Replays responses by cache key from a JSONL file: {"key","text","tokens_in","tokens_out"}."""
 
     name = "recorded"
+    data_classes = frozenset({"public", "customer"})  # local replay, no network
 
     def __init__(self, fixture_path):
         self.entries: dict[str, dict] = {}
