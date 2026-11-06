@@ -100,4 +100,4 @@ def fit_cascade(text: str, font: pymupdf.Font, box_w: float, box_h: float, max_s
     f = fit_text(text, font, box_w, ext_h, max_size, hard, lh=tight_lh, **kw)
     if f.fits:
         return CascadeFit(f, "hard_floor", max(0.0, f.height - box_h), False)
-    return CascadeFit(f, "overflow", max(0.0, f.height - box_h), True)
+    return CascadeFit(f, "overflow", 0.0, True)  # nothing extended; text drawn in full, flagged
