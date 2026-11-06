@@ -2,13 +2,11 @@
 name = "manuvi"
 version = "0.1.0"
 description = "EN to VI translation of long technical manuals with terminology enforcement, automated QA and human review"
-requires-python = ">=3.9"
+requires-python = ">=3.13"
 dependencies = [
     "pymupdf>=1.24.0",
     "pydantic>=2.0",
     "typer>=0.12.0",
-    "python-docx>=1.1.0",
-    "rich>=13.0",
     "pyyaml>=6.0",
     "openpyxl>=3.1.0",
     "httpx>=0.27",
@@ -16,20 +14,24 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=3.1",
     "fastapi>=0.110",
     "uvicorn>=0.29",
-    "docx2pdf>=0.1.8; sys_platform == 'darwin'",
 ]
 
 [project.scripts]
-translate-manual = "src.cli:app"
+manuvi = "src.cli:app"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.setuptools.package-data]
+"src.glossary" = ["seeds/*.csv"]
 "src.intake" = ["patterns.yaml"]
 "src.webapp" = ["static/*.html"]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+exclude = ["legacy*"]
