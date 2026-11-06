@@ -1,0 +1,25 @@
+# LLM gateway profiles. Overridden by SSM (/manuvi/<profile>/...) and env vars.
+# Model spec format: "<adapter>:<model_id>" with adapter in fake|recorded|ollama|bedrock.
+default_profile: dev
+profiles:
+  dev:
+    allow_paid: false
+    caps_usd: {run: 0}
+    models:
+      bulk: "fake:fake-bulk"
+      strong: "fake:fake-strong"
+      vision: "fake:fake-vision"
+  qa:
+    allow_paid: false
+    caps_usd: {run: 1}
+    models:
+      bulk: "ollama:qwen2.5:7b"
+      strong: "ollama:qwen2.5:14b"
+      vision: "ollama:llava:7b"
+  prod:
+    allow_paid: true
+    caps_usd: {job: 5, month: 20}
+    models:
+      bulk: "bedrock:placeholder-bulk-model"
+      strong: "bedrock:placeholder-strong-model"
+      vision: "bedrock:placeholder-vision-model"
