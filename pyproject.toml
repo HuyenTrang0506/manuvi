@@ -9,6 +9,7 @@ dependencies = [
     "typer>=0.12.0",
     "python-docx>=1.1.0",
     "rich>=13.0",
+    "pyyaml>=6.0",
     "openpyxl>=3.1.0",
     "docx2pdf>=0.1.8; sys_platform == 'darwin'",
 ]
@@ -19,6 +20,9 @@ translate-manual = "src.cli:app"
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+"src.intake" = ["patterns.yaml"]
 
 [tool.setuptools.packages.find]
 where = ["."]
