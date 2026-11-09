@@ -137,3 +137,12 @@ def test_synth_keeps_tokens_and_lengthens():
     t = synth_vi(PROSE)
     assert "YT12-AB3C" in t and "45 N·m" in t and "Fig. 23-11" in t
     assert 1.15 < len(t) / len(PROSE) < 1.5
+
+
+def test_label_legend_overflowing_the_page_does_not_crash(tmp_path):
+    """Regression: a legend that needed more room than the page has raised 'CropBox not in MediaBox',
+    so PDF output failed for any job with a long diagram label (synthetic PDF, no customer data)."""
+    long = seg(0, (68, 223, 76, 253), "label", "s", "x" * 200, rotate=-90)
+    _, out, res = render(tmp_path, [long])
+    assert res[0].grown > 0 and res[0].legend
+    assert pymupdf.open(out)[0].rect.height > 300

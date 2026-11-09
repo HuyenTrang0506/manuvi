@@ -181,7 +181,8 @@ def _draw_legend(page, font, entries, res: PageResult, content_bottom: float, so
         grow = y + need + 6.0 - page.rect.y1
         mb = page.mediabox
         page.set_mediabox(pymupdf.Rect(mb.x0, mb.y0 - grow, mb.x1, mb.y1))
-        page.set_cropbox(page.rect)
+        # PyMuPDF already resizes the CropBox with the MediaBox; setting it again from page.rect (a different,
+        # top-left coordinate system) raised "CropBox not in MediaBox" and failed the whole PDF.
         res.grown = grow
     res.legend = True
     for lines, bold in laid:
