@@ -6,6 +6,11 @@
   const canReview = CFG.canReview !== false;
   $('#who').textContent = CFG.user ? `${CFG.user} (${CFG.role})` : '';
   if (CFG.portal) { $('#back').hidden = false; $('#home').setAttribute('href', '/'); }
+  let keysOn = false;
+  try { keysOn = localStorage.getItem('manuvi.keys') === '1'; } catch (_) {}
+  const keysBox = $('#keys');
+  keysBox.checked = keysOn;
+  keysBox.onchange = () => { keysOn = keysBox.checked; try { localStorage.setItem('manuvi.keys', keysOn ? '1' : '0'); } catch (_) {} say(keysOn ? 'Keyboard shortcuts on.' : 'Keyboard shortcuts off.'); };
   let rows = [], sel = 0, cur = null, filters = {decision: 'pending'}, firstPaint = true;
   const skeleton = () => '<div aria-busy="true" aria-label="Loading">' + '<span class="sk tall"></span>'.repeat(3) + '</div>';
 
@@ -37,8 +42,8 @@
       <div class="filters" role="search">${opt('status', ['error', 'needs_review', 'warn', 'ok'])}${opt('kind', ['signal', 'step', 'prose', 'table', 'label'])}${opt('section', secs)}${opt('decision', ['pending', 'approved', 'rejected'])}
         <input id="f-q" type="search" placeholder="Search text" aria-label="Search text" value="${esc(filters.q || '')}">
         ${canReview ? '<button id="bulk" type="button">Approve ticked segments</button>' : ''}</div>
-      <p class="hint">Keys: <kbd>j</kbd> <kbd>k</kbd> move, <kbd>Enter</kbd> open. Safety segments are never approved in bulk.</p>
-      ${rows.length ? `<ol class="queue">${rows.map((r, i) => `<li class="qrow${r.kind === 'signal' ? ' safety' : ''}${rise}" data-i="${i}" aria-selected="${i === sel}">
+      <p class="hint">Safety segments are never approved in bulk. Turn on keyboard shortcuts in the header to use <kbd>j</kbd> <kbd>k</kbd> to move and <kbd>Enter</kbd> to open.</p>
+      ${rows.length ? `<ol class="queue">${rows.map((r, i) => `<li class="qrow${r.kind === 'signal' ? ' safety' : ''}${rise}" data-i="${i}" aria-current="${i === sel}">
         <span class="cb">${canReview && r.kind !== 'signal' ? `<input type="checkbox" data-id="${esc(r.id)}" aria-label="Tick ${esc(r.id)}">` : ''}</span>
         <a class="id" href="#/seg/${encodeURIComponent(r.id)}">${esc(r.id)}</a>${pageChip(r)}
         <span class="${r.kind === 'signal' ? 'signal' : ''}">${r.kind === 'signal' ? '⚠ Safety' : esc(r.kind)}</span>
@@ -62,7 +67,7 @@
   function moveSel(d) {
     if (!rows.length) return;
     sel = Math.max(0, Math.min(rows.length - 1, sel + d));
-    document.querySelectorAll('.qrow').forEach((li, i) => { li.setAttribute('aria-selected', i === sel); if (i === sel) li.scrollIntoView({block: 'nearest'}); });
+    document.querySelectorAll('.qrow').forEach((li, i) => { li.setAttribute('aria-current', i === sel); if (i === sel) li.scrollIntoView({block: 'nearest'}); });
   }
 
   async function viewSeg(id) {
@@ -87,7 +92,7 @@
         ${mayDecide ? '<button id="b-n" type="button">Flag for review (n)</button>' : ''}
       </div>
       ${canReview ? `<div class="section field"><label for="cm">Comment</label><input id="cm" type="text" maxlength="500" autocomplete="off"><p class="hint">Saved in the audit log with your name.</p><button id="b-c" type="button">Add comment</button></div>` : ''}
-      <p class="hint">Keys: <kbd>a</kbd> approve, <kbd>r</kbd> reject, <kbd>n</kbd> flag, <kbd>j</kbd> <kbd>k</kbd> next and previous. Shortcuts are off while you type.</p>`;
+      <p class="hint">Shortcuts (turn them on in the header): <kbd>a</kbd> approve, <kbd>r</kbd> reject, <kbd>n</kbd> flag, <kbd>j</kbd> <kbd>k</kbd> next and previous.</p>`;
     const on = (sel_, fn) => { const el = $(sel_); if (el) el.onclick = fn; };
     on('#save', saveEdit); on('#b-a', () => decide('approve')); on('#b-r', () => decide('reject')); on('#b-n', () => decide('needs_review'));
     on('#b-c', async () => {
@@ -144,7 +149,7 @@
   }
 
   addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    if (!keysOn || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     const inSeg = location.hash.startsWith('#/seg/');
     if (e.key === 'j' || e.key === 'k') {
       const d = e.key === 'j' ? 1 : -1;

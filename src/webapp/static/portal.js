@@ -170,7 +170,7 @@
     ${isFounder ? `<div class="field"><label class="cb check"><input id="ra" type="checkbox" ${j.reviewer_can_review ? 'checked' : ''}> Let the reviewer approve non-safety segments</label><p class="hint">Safety segments always need the founder.</p></div>` : ''}
     </section>
     <section class="section" aria-labelledby="dh"><h2 id="dh">Downloads</h2>
-      <div class="dl">${DL.map(([k, t]) => j.outputs[k] ? `<a class="btn" href="/download/${esc(j.id)}/${k}">${esc(t)}</a>` : `<span class="btn" aria-disabled="true">${esc(t)}</span>`).join('')}</div>
+      <div class="dl">${DL.map(([k, t]) => j.outputs[k] ? `<a class="btn" href="/download/${esc(j.id)}/${k}">${esc(t)}</a>` : `<span class="btn" aria-disabled="true">${esc(t)}<span class="sr"> (not ready yet)</span></span>`).join('')}</div>
       ${Object.values(j.outputs).some(Boolean) ? '' : '<p class="hint">Files appear here when the translation is ready.</p>'}
     </section>`;
   }

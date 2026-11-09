@@ -11,7 +11,7 @@ function say(text, ms = 4000) {
   t.textContent = text;
   t.hidden = false;
   clearTimeout(toastTimer);
-  if (t.id === 'toast') toastTimer = setTimeout(() => { t.hidden = true; }, ms);
+  if (t.id === 'toast') toastTimer = setTimeout(() => { t.hidden = true; t.textContent = ''; }, ms);
 }
 
 async function api(path, opt = {}) {
