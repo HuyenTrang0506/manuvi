@@ -1,0 +1,328 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Manuvi hosting (small, stoppable): SQS job queue + dead-letter queue, one small EC2 instance
+  running the web app behind Caddy, Elastic IP, SSM Session Manager (no SSH), instance role,
+  and the manuvi-worker role that remote workers (founder's Mac) assume. Needs the foundation stack.
+
+# NOTES
+# - Deploy infra/manuvi-foundation.yaml first. Pass its ArtifactBucketName output here.
+# - No SSH: the security group opens 80/443 only. Shell access is via SSM Session Manager.
+# - The web password hash is NOT in this template. It lives in SSM SecureString
+#   /manuvi/prod/web/users and is read by the container at start.
+# - Stop the instance when idle (scripts/aws_stop_start.sh). The Elastic IP is free while
+#   attached to a running instance; verify idle-address pricing on the AWS pricing page.
+# - InstanceType must match Architecture (t4g = arm64, t3 = x86_64); a Rule enforces this.
+
+Parameters:
+  ArtifactBucketName:
+    Type: String
+    Description: ArtifactBucketName output of the manuvi-foundation stack.
+    AllowedPattern: "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
+  TrustedPrincipalArn:
+    Type: String
+    Description: Same principal as the foundation stack. Allowed to assume manuvi-worker.
+    AllowedPattern: "^arn:aws[a-z-]*:iam::[0-9]{12}:(user|role)/[A-Za-z0-9+=,.@_/-]+$"
+    ConstraintDescription: Must be a specific IAM user or role ARN (no wildcards).
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC for the instance (the default VPC is fine).
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Public subnet (auto-assign public IPv4 or route to an internet gateway) in the VPC above.
+  InstanceType:
+    Type: String
+    Default: t4g.small
+    AllowedValues: [t4g.micro, t4g.small, t4g.medium, t3.micro, t3.small, t3.medium]
+    Description: Small instance. Verify availability and price on the AWS pricing page.
+  Architecture:
+    Type: String
+    Default: arm64
+    AllowedValues: [arm64, x86_64]
+    Description: Must match InstanceType (t4g = arm64, t3 = x86_64).
+  SourceTarballUrl:
+    Type: String
+    Description: >-
+      Public GitHub tarball of the repo, ideally pinned to a tag or commit, for example
+      https://github.com/OWNER/REPO/archive/refs/tags/v0.1.0.tar.gz
+    AllowedPattern: "^https://(github\\.com|codeload\\.github\\.com)/[A-Za-z0-9._/-]+\\.tar\\.gz$"
+    ConstraintDescription: Must be an https GitHub .tar.gz URL.
+  DomainName:
+    Type: String
+    Default: ""
+    Description: >-
+      Optional domain whose A record points to the Elastic IP. Empty means self-signed HTTPS
+      on the IP (or use a Cloudflare Tunnel). See docs/HOSTING.md.
+    AllowedPattern: "^$|^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$"
+  RootVolumeGiB:
+    Type: Number
+    Default: 20
+    MinValue: 8
+    MaxValue: 100
+    Description: Encrypted gp3 root volume size in GiB.
+
+Rules:
+  ArchMatchesInstanceType:
+    RuleCondition: !Equals [!Ref Architecture, "arm64"]
+    Assertions:
+      - Assert: !Contains [[t4g.micro, t4g.small, t4g.medium], !Ref InstanceType]
+        AssertDescription: arm64 requires a t4g instance type.
+  X86MatchesInstanceType:
+    RuleCondition: !Equals [!Ref Architecture, "x86_64"]
+    Assertions:
+      - Assert: !Contains [[t3.micro, t3.small, t3.medium], !Ref InstanceType]
+        AssertDescription: x86_64 requires a t3 instance type.
+
+Conditions:
+  HasDomain: !Not [!Equals [!Ref DomainName, ""]]
+
+Resources:
+  # ---- Queues ----
+  JobDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: manuvi-jobs-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  JobQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: manuvi-jobs
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 20
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt JobDeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  JobQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref JobQueue
+        - !Ref JobDeadLetterQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "sqs:*"
+            Resource:
+              - !GetAtt JobQueue.Arn
+              - !GetAtt JobDeadLetterQueue.Arn
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
+  # ---- Web instance identity ----
+  WebInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: manuvi-web-instance
+      Description: Instance role of the Manuvi web host (queue, jobs/ prefix, /manuvi/* config, SSM Session Manager).
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      Policies:
+        - PolicyName: manuvi-web-instance-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: QueueSendOnly
+                Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:GetQueueUrl
+                Resource: !GetAtt JobQueue.Arn
+              # No s3:prefix condition on purpose: HeadObject/GetObject on a missing key return 403 instead of
+              # 404 unless ListBucket is allowed without a prefix context, and the app relies on the 404.
+              - Sid: BucketListForNotFound
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}"
+              - Sid: JobsPrefixObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}/jobs/*"
+              - Sid: ReadWebConfigOnly
+                Effect: Allow
+                Action: ssm:GetParameter
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/manuvi/prod/web/users"
+                  - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/manuvi/prod/tunnel/token"
+
+  WebInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: manuvi-web-instance
+      Roles:
+        - !Ref WebInstanceRole
+
+  # ---- Worker identity (assumed by the founder's SSO profile, no long-lived keys) ----
+  WorkerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: manuvi-worker
+      Description: Assumable only by TrustedPrincipalArn. Used by "manuvi worker" on a remote machine.
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref TrustedPrincipalArn
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: manuvi-worker-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: QueuePull
+                Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:ChangeMessageVisibility
+                  - sqs:GetQueueAttributes
+                  - sqs:GetQueueUrl
+                Resource: !GetAtt JobQueue.Arn
+              - Sid: BucketListForNotFound
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}"
+              - Sid: JobAndTracePrefixes
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}/jobs/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}/traces/*"
+
+  # ---- Network ----
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Manuvi web. HTTP and HTTPS only. No SSH (use SSM Session Manager).
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP (redirects to HTTPS, ACME challenge)
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+          Description: Outbound (package install, SQS, S3, SSM)
+
+  # ---- Instance ----
+  WebLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub "${AWS::StackName}-web"
+      LaunchTemplateData:
+        ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-${Architecture}}}"
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile:
+          Arn: !GetAtt WebInstanceProfile.Arn
+        SecurityGroupIds:
+          - !Ref WebSecurityGroup
+        MetadataOptions:
+          HttpTokens: required
+          # Hop limit 2 lets the app container reach the instance role through IMDSv2.
+          HttpPutResponseHopLimit: 2
+          HttpEndpoint: enabled
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: !Ref RootVolumeGiB
+              VolumeType: gp3
+              Encrypted: true
+              DeleteOnTermination: true
+
+  WebInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      SubnetId: !Ref SubnetId
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebLaunchTemplate
+        Version: !GetAtt WebLaunchTemplate.LatestVersionNumber
+      Tags:
+        - Key: Name
+          Value: manuvi-web
+      # No secrets here. Non-secret settings only; the password hash is read from SSM at start.
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euo pipefail
+            exec > >(tee /var/log/manuvi-userdata.log) 2>&1
+            dnf install -y docker tar gzip
+            systemctl enable --now docker
+            mkdir -p /opt/manuvi/src
+            curl -fsSL "${SourceTarballUrl}" | tar -xz --strip-components=1 -C /opt/manuvi/src
+            cat > /opt/manuvi/.env <<'ENVEOF'
+            MANUVI_AWS_REGION=${AWS::Region}
+            MANUVI_S3_BUCKET=${ArtifactBucketName}
+            MANUVI_QUEUE=sqs
+            MANUVI_QUEUE_URL=${JobQueue}
+            MANUVI_DLQ_URL=${JobDeadLetterQueue}
+            MANUVI_STORE=s3
+            MANUVI_COOKIE_SECURE=1
+            MANUVI_USERS_PARAM=/manuvi/prod/web/users
+            MANUVI_DOMAIN=${DomainName}
+            ENVEOF
+            bash /opt/manuvi/src/deploy/bootstrap.sh
+          - {}
+
+  WebElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref WebInstance
+      Tags:
+        - Key: Name
+          Value: manuvi-web
+
+Outputs:
+  JobQueueUrl:
+    Description: SQS job queue URL (set as MANUVI_QUEUE_URL on workers).
+    Value: !Ref JobQueue
+  JobQueueArn:
+    Value: !GetAtt JobQueue.Arn
+  DeadLetterQueueUrl:
+    Value: !Ref JobDeadLetterQueue
+  WebInstanceId:
+    Description: Instance id (stop/start with scripts/aws_stop_start.sh).
+    Value: !Ref WebInstance
+  WebPublicIp:
+    Description: Elastic IP. Point your domain A record here.
+    Value: !Ref WebElasticIp
+  WebPublicDnsName:
+    Description: Instance public DNS name.
+    Value: !GetAtt WebInstance.PublicDnsName
+  WebUrl:
+    Value: !If
+      - HasDomain
+      - !Sub "https://${DomainName}"
+      - !Sub "https://${WebElasticIp}"
+  WorkerRoleArn:
+    Description: Role the worker assumes (role_arn in the worker AWS CLI profile).
+    Value: !GetAtt WorkerRole.Arn

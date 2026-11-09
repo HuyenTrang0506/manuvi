@@ -1,0 +1,20 @@
+# Option A (recommended): your own domain. Its A record must point to the Elastic IP.
+# Caddy obtains and renews a Let's Encrypt certificate automatically; HTTP redirects to HTTPS.
+# Selected by bootstrap.sh when MANUVI_DOMAIN is set.
+{$MANUVI_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+	reverse_proxy app:8000
+}
+
+# Option B target: Cloudflare Tunnel origin. Internal only (not published on the host);
+# the tunnel itself provides HTTPS to the browser.
+http://:8080 {
+	reverse_proxy app:8000
+}
