@@ -1,0 +1,392 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Manuvi foundation (minimal, cheap, safe): private S3 artifact bucket, SSM Parameter Store
+  config (Standard tier, free), least-privilege app role, CloudWatch log group, monthly budget alerts.
+
+# NOTES
+# - AWS Budgets only ALERTS by email. It never stops spending. The hard stop is the app-level
+#   cap (/manuvi/<profile>/cap/job_usd and cap/month_usd, enforced by the gateway, ADR-010).
+# - Everything is created in the region you deploy to. The app role has an explicit Deny for
+#   bedrock/s3/ssm/logs calls made outside that region.
+# - Paid models stay off until the founder sets /manuvi/<profile>/allow_paid to "true".
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Description: Email that receives budget alerts.
+    AllowedPattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    ConstraintDescription: Must be a valid email address.
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 20
+    MinValue: 1
+    Description: Monthly cost budget in USD (alerts only).
+  ArtifactBucketName:
+    Type: String
+    Default: ""
+    Description: Optional globally unique bucket name. Empty lets CloudFormation generate one.
+    AllowedPattern: "^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
+  TrustedPrincipalArn:
+    Type: String
+    Description: ARN of the single user or role allowed to assume manuvi-app (for example your SSO role or IAM user).
+    AllowedPattern: "^arn:aws[a-z-]*:iam::[0-9]{12}:(user|role)/[A-Za-z0-9+=,.@_/-]+$"
+    ConstraintDescription: Must be a specific IAM user or role ARN (no wildcards).
+  RequireMfa:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Require MFA in the session that assumes the role (IAM users only; SSO sessions often lack this flag).
+  BedrockModelArns:
+    Type: CommaDelimitedList
+    Default: ""
+    AllowedPattern: "^$|^arn:aws[a-z-]*:bedrock:[^*,]+(,arn:aws[a-z-]*:bedrock:[^*,]+)*$"
+    ConstraintDescription: Each entry must be a bedrock ARN without wildcards (no spaces after commas).
+    Description: Comma-separated Bedrock foundation-model and inference-profile ARNs the app may invoke. Empty means no Bedrock access.
+
+Conditions:
+  HasBucketName: !Not [!Equals [!Ref ArtifactBucketName, ""]]
+  HasBedrock: !Not [!Equals [!Join ["", !Ref BedrockModelArns], ""]]
+  MfaRequired: !Equals [!Ref RequireMfa, "true"]
+
+Resources:
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !If [HasBucketName, !Ref ArtifactBucketName, !Ref AWS::NoValue]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-noncurrent-30d
+            Status: Enabled
+            ExpiredObjectDeleteMarker: true
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          # Traces are written as traces/<job_id>/trace.jsonl (keep this prefix in sync with the app).
+          - Id: expire-traces-90d
+            Status: Enabled
+            Prefix: traces/
+            ExpirationInDays: 90
+
+  ArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt ArtifactBucket.Arn
+              - !Sub "${ArtifactBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /manuvi/app
+      RetentionInDays: 30
+
+  AppPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: manuvi-app-policy
+      Description: Least-privilege access for the Manuvi app (bucket, config, logs, listed Bedrock models).
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - !If
+            - HasBedrock
+            # Converse/ConverseStream API calls are authorized by InvokeModel* (no separate IAM action).
+            - Sid: BedrockInvokeListedModelsOnly
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: !Ref BedrockModelArns
+            - !Ref AWS::NoValue
+          - Sid: ArtifactBucketList
+            Effect: Allow
+            Action: s3:ListBucket
+            Resource: !GetAtt ArtifactBucket.Arn
+          - Sid: ArtifactBucketDoctor
+            Effect: Allow
+            Action:
+              - s3:GetBucketPublicAccessBlock
+              - s3:GetBucketLocation
+            Resource: !GetAtt ArtifactBucket.Arn
+          - Sid: ArtifactObjects
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource: !Sub "${ArtifactBucket.Arn}/*"
+          - Sid: ReadManuviConfig
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:GetParametersByPath
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/manuvi"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/manuvi/*"
+          - Sid: WriteAppLogs
+            Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !GetAtt AppLogGroup.Arn
+          - Sid: DenyOutsideDeployRegion
+            Effect: Deny
+            Action:
+              - bedrock:*
+              - s3:*
+              - ssm:*
+              - logs:*
+            Resource: "*"
+            Condition:
+              StringNotEquals:
+                "aws:RequestedRegion": !Ref AWS::Region
+
+  AppRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: manuvi-app
+      Description: Assumable only by TrustedPrincipalArn. Used by the Manuvi app.
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref TrustedPrincipalArn
+            Action: sts:AssumeRole
+            Condition: !If
+              - MfaRequired
+              - Bool:
+                  "aws:MultiFactorAuthPresent": "true"
+              - !Ref AWS::NoValue
+      ManagedPolicyArns:
+        - !Ref AppPolicy
+
+  CostBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: manuvi-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 50
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+
+  # ---- SSM Parameter Store (Standard tier = free) ----
+  ParamDevModelBulk:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/dev/model/bulk
+      Type: String
+      Tier: Standard
+      Value: "ollama:qwen2.5:14b"
+      Description: Model route for bulk tasks (dev).
+  ParamDevModelStrong:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/dev/model/strong
+      Type: String
+      Tier: Standard
+      Value: "ollama:qwen2.5:14b"
+      Description: Model route for strong tasks (dev).
+  ParamDevModelVision:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/dev/model/vision
+      Type: String
+      Tier: Standard
+      Value: "ollama:qwen2.5:14b"
+      Description: Model route for vision tasks (dev).
+  ParamDevAllowPaid:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/dev/allow_paid
+      Type: String
+      Tier: Standard
+      Value: "false"
+      Description: Master switch for paid model calls (dev). Set to true only on purpose.
+  ParamDevCapJob:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/dev/cap/job_usd
+      Type: String
+      Tier: Standard
+      Value: "0"
+      Description: Hard per-job spend cap in USD (dev).
+  ParamDevCapMonth:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/dev/cap/month_usd
+      Type: String
+      Tier: Standard
+      Value: "0"
+      Description: Hard monthly spend cap in USD (dev).
+  ParamQaModelBulk:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/qa/model/bulk
+      Type: String
+      Tier: Standard
+      Value: "bedrock:amazon.nova-lite-v1:0"
+      Description: Model route for bulk tasks (qa).
+  ParamQaModelStrong:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/qa/model/strong
+      Type: String
+      Tier: Standard
+      Value: "none"
+      Description: Model route for strong tasks (qa).
+  ParamQaModelVision:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/qa/model/vision
+      Type: String
+      Tier: Standard
+      Value: "none"
+      Description: Model route for vision tasks (qa).
+  ParamQaAllowPaid:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/qa/allow_paid
+      Type: String
+      Tier: Standard
+      Value: "false"
+      Description: Master switch for paid model calls (qa). Set to true only on purpose.
+  ParamQaCapJob:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/qa/cap/job_usd
+      Type: String
+      Tier: Standard
+      Value: "1"
+      Description: Hard per-job spend cap in USD (qa).
+  ParamQaCapMonth:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/qa/cap/month_usd
+      Type: String
+      Tier: Standard
+      Value: "3"
+      Description: Hard monthly spend cap in USD (qa).
+  ParamProdModelBulk:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/prod/model/bulk
+      Type: String
+      Tier: Standard
+      Value: "bedrock:amazon.nova-lite-v1:0"
+      Description: Model route for bulk tasks (prod).
+  ParamProdModelStrong:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/prod/model/strong
+      Type: String
+      Tier: Standard
+      Value: "none"
+      Description: Model route for strong tasks (prod).
+  ParamProdModelVision:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/prod/model/vision
+      Type: String
+      Tier: Standard
+      Value: "none"
+      Description: Model route for vision tasks (prod).
+  ParamProdAllowPaid:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/prod/allow_paid
+      Type: String
+      Tier: Standard
+      Value: "false"
+      Description: Master switch for paid model calls (prod). Set to true only on purpose.
+  ParamProdCapJob:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/prod/cap/job_usd
+      Type: String
+      Tier: Standard
+      Value: "5"
+      Description: Hard per-job spend cap in USD (prod).
+  ParamProdCapMonth:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /manuvi/prod/cap/month_usd
+      Type: String
+      Tier: Standard
+      Value: "15"
+      Description: Hard monthly spend cap in USD (prod).
+
+Outputs:
+  ArtifactBucketName:
+    Description: Job artifacts and traces bucket (retained on stack delete).
+    Value: !Ref ArtifactBucket
+  AppRoleArn:
+    Description: Role the app assumes.
+    Value: !GetAtt AppRole.Arn
+  AppLogGroupName:
+    Description: CloudWatch log group.
+    Value: !Ref AppLogGroup
