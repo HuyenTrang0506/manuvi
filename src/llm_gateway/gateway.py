@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import random
 import uuid
@@ -18,15 +19,33 @@ from .errors import BudgetExceeded, DataClassViolation, NotConfigured, Transient
 from .models import LLMRequest, LLMResult
 
 
+log = logging.getLogger(__name__)
+UNVERIFIED_PRICE_MULTIPLIER = 1.5
+
+
 class Prices:
+    """Price table. An entry with `verified: false` is charged x1.5 by the cost guard (reservation and
+    ledger) and logs a warning on first use. A missing `verified` key counts as verified (test tables)."""
+
     def __init__(self, path: Path = DEFAULT_PRICES):
         self.table = yaml.safe_load(Path(path).read_text()).get("models", {})
+        self._warned: set[str] = set()
+
+    def is_verified(self, model_id: str) -> bool:
+        return bool(self.table.get(model_id, {}).get("verified", True))
 
     def cost(self, model_id: str, tokens_in: int, tokens_out: int) -> float:
         p = self.table.get(model_id)
         if p is None:
             raise NotConfigured(f"no price entry for paid model {model_id!r}")
-        return tokens_in / 1000 * p["input_per_1k"] + tokens_out / 1000 * p["output_per_1k"]
+        usd = tokens_in / 1000 * p["input_per_1k"] + tokens_out / 1000 * p["output_per_1k"]
+        if not self.is_verified(model_id):
+            if model_id not in self._warned:
+                self._warned.add(model_id)
+                log.warning("price for %s is unverified (%s); cost guard uses x%s", model_id,
+                            p.get("source", "no source"), UNVERIFIED_PRICE_MULTIPLIER)
+            usd *= UNVERIFIED_PRICE_MULTIPLIER
+        return usd
 
 
 class Job:
@@ -83,7 +102,9 @@ class Gateway:
     def _adapter(self, name: str, cfg: ResolvedConfig) -> Adapter:
         if name == "bedrock" and name not in self.adapters:
             # not cached: opt-in depends on the pinned config of the calling job
-            return BedrockAdapter(customer_data="bedrock" in cfg.customer_data_adapters)
+            return BedrockAdapter(customer_data="bedrock" in cfg.customer_data_adapters,
+                                  enabled=cfg.allow_paid and cfg.caps_ok(),
+                                  env={**os.environ, **(self._env or {})})
         if name in self.adapters:
             return self.adapters[name]
         if name == "fake":
@@ -121,6 +142,8 @@ class Gateway:
         if adapter.paid:
             if not cfg.allow_paid:
                 raise NotConfigured("paid call refused: allow_paid is false")
+            if adapter.name == "bedrock" and not cfg.caps_ok():
+                raise NotConfigured("paid call refused: job and month caps must both be > 0")
             scopes, reserved = self._reserve(job, req, model_id)
 
         t0 = time.perf_counter()

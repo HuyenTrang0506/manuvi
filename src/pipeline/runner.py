@@ -1,6 +1,7 @@
 """Run / resume / status / re-run of a job dir. Thread id = job id (re-runs get '<job>#rN')."""
 from __future__ import annotations
 
+import os
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -10,13 +11,15 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from ..llm_gateway import BudgetExceeded, Gateway, Job
+from ..llm_gateway.config import ssm_from_env
 from ..llm_gateway.adapters import Adapter
 from ..llm_gateway.cache import SqliteStore  # noqa: F401  (documented dependency of the cache file)
 from ..terms import TermStore, TranslationMemory
 from .db import JobDB, Ledger
 from .graph import PipelineContext, build_graph
 from .schema import CACHE_FILE, CHECKPOINT_FILE, TRACE_FILE
-from .tracing import JsonlExporter, LangfuseExporter, TraceExporter, Tracer, langfuse_enabled
+from .tracing import (JsonlExporter, LangfuseExporter, S3Exporter, TraceExporter, Tracer, langfuse_enabled,
+                      s3_enabled)
 
 EXIT = {"done": 0, "waiting": 3, "budget_stopped": 4}
 
@@ -37,6 +40,8 @@ class RunResult:
 def make_gateway(job_dir: Path, profile: str = "dev", adapters: Optional[dict[str, Adapter]] = None,
                  env: Optional[dict] = None, **kw: Any) -> Gateway:
     e = {"MANUVI_PROFILE": profile, **(env or {})}
+    if kw.get("ssm") is None:  # SSM only when MANUVI_AWS_PROFILE / MANUVI_AWS_REGION is set
+        kw["ssm"] = ssm_from_env({**os.environ, **e})
     return Gateway(cache_path=Path(job_dir) / CACHE_FILE, env=e, adapters=adapters, **kw)
 
 
@@ -81,6 +86,9 @@ def run_job(
         exps.append(langfuse)
     elif langfuse_enabled():
         exps.append(LangfuseExporter())
+    s3x = S3Exporter(job_id) if s3_enabled() else None  # off by default (MANUVI_S3_TRACE=1 + bucket)
+    if s3x is not None:
+        exps.append(s3x)
     if budget_usd is not None:
         apply_job_budget(gateway, job_id, budget_usd)
     ctx = PipelineContext(job_id=job_id, db=db, ledger=ledger, gateway=gateway, tracer=Tracer(job_id, exps),
@@ -149,6 +157,8 @@ def run_job(
         db.set_meta("state", "done")
         return RunResult("done", thread, status=job_status(job_dir, job_id))
     finally:
+        if s3x is not None:
+            s3x.flush()
         conn.close()
         ledger.close()
         db.close()

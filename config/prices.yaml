@@ -1,18 +1,41 @@
-# Placeholder prices (USD per 1K tokens). Replace with real values before any paid use.
-# Free adapters (fake/recorded/ollama) cost 0 and need no entry.
+# Prices in USD per 1K tokens. EVERY entry is unverified until someone checks it against the provider page
+# and flips `verified: true`. The gateway warns on first use of an unverified price and the cost guard
+# multiplies it by 1.5. Free adapters (fake/recorded/ollama) cost 0 and need no entry.
 models:
   placeholder-bulk-model:
     input_per_1k: 0.0005
     output_per_1k: 0.0015
-    source: "PLACEHOLDER - fill from provider pricing page"
+    verified: false
+    source: "verify on https://aws.amazon.com/bedrock/pricing/"
     date: "1970-01-01"
   placeholder-strong-model:
     input_per_1k: 0.003
     output_per_1k: 0.015
-    source: "PLACEHOLDER - fill from provider pricing page"
+    verified: false
+    source: "verify on https://aws.amazon.com/bedrock/pricing/"
     date: "1970-01-01"
   placeholder-vision-model:
     input_per_1k: 0.003
     output_per_1k: 0.015
-    source: "PLACEHOLDER - fill from provider pricing page"
+    verified: false
+    source: "verify on https://aws.amazon.com/bedrock/pricing/"
+    date: "1970-01-01"
+  # Amazon Nova on-demand, figures from memory (not checked online): treat as unverified.
+  amazon.nova-micro-v1:0:
+    input_per_1k: 0.000035
+    output_per_1k: 0.00014
+    verified: false
+    source: "verify on https://aws.amazon.com/bedrock/pricing/"
+    date: "1970-01-01"
+  amazon.nova-lite-v1:0:
+    input_per_1k: 0.00006
+    output_per_1k: 0.00024
+    verified: false
+    source: "verify on https://aws.amazon.com/bedrock/pricing/"
+    date: "1970-01-01"
+  amazon.nova-pro-v1:0:
+    input_per_1k: 0.0008
+    output_per_1k: 0.0032
+    verified: false
+    source: "verify on https://aws.amazon.com/bedrock/pricing/"
     date: "1970-01-01"
