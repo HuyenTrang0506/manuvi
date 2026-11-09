@@ -12,10 +12,11 @@ source "$here/aws_common.sh"
 : "${TRUSTED_PRINCIPAL_ARN:?Set TRUSTED_PRINCIPAL_ARN}"
 
 template="$here/../infra/manuvi-foundation.yaml"
-aws cloudformation validate-template --template-body "file://$template" >/dev/null 2>&1 \
-  || { echo "Template validation failed (or no access)." >&2; exit 1; }
 
 require_profile_and_confirm
+
+aws cloudformation validate-template --template-body "file://$template" >/dev/null \
+  || { echo "Template validation failed." >&2; exit 1; }
 
 overrides=(
   "AlertEmail=${ALERT_EMAIL}"

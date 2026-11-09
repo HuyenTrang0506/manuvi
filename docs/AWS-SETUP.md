@@ -24,7 +24,17 @@ bash scripts/aws_deploy.sh
 The script prints profile, account id and region, and asks you to type the account id before it changes anything. It runs `aws cloudformation deploy ... --capabilities CAPABILITY_NAMED_IAM`.
 Re-run it any time to update `BedrockModelArns`; leaving it empty grants no Bedrock access.
 
-## 3. Switch profile or model
+## 3. App settings and doctor
+The app reads these environment variables (never keys):
+- `MANUVI_AWS_PROFILE`: AWS CLI profile the app uses (your SSO profile, or one that assumes `manuvi-app`).
+- `MANUVI_AWS_REGION`: region of the stack. Must equal the `AWS_REGION` you deployed with; the role denies other regions.
+- `MANUVI_S3_BUCKET`: the `ArtifactBucketName` stack output.
+- `MANUVI_S3_TRACE`: set to enable writing traces to S3 under `traces/<job_id>/trace.jsonl` (expire after 90 days); off by default.
+
+Run `manuvi aws doctor` to check the setup (identity, region, bucket public-access block, parameters).
+The app role cannot delete objects; teardown is done with your own admin profile.
+
+## 4. Switch profile or model
 Config is read from `/manuvi/<profile>/...`. Examples:
 ```bash
 aws ssm put-parameter --name /manuvi/qa/model/bulk --type String --overwrite \
@@ -36,7 +46,7 @@ aws ssm put-parameter --name /manuvi/qa/cap/job_usd --type String --overwrite --
 Defaults: dev uses `ollama:qwen2.5:14b` with caps 0; qa caps 1 / 3 USD; prod caps 5 / 15 USD (job / month); `allow_paid` is `false` everywhere; strong and vision are `none` for qa/prod. A model must also be listed in `BedrockModelArns`, or IAM denies the call.
 Note: re-deploying the stack resets these parameters to the template defaults.
 
-## 4. Verify
+## 5. Verify
 ```bash
 aws sts get-caller-identity
 aws ssm get-parameters-by-path --path /manuvi/dev --recursive --query 'Parameters[].[Name,Value]' --output table
@@ -46,13 +56,13 @@ aws budgets describe-budgets --account-id <account-id>
 ```
 Offline checks (no AWS needed): `cfn-lint infra/manuvi-foundation.yaml` and `pytest tests/infra`.
 
-## 5. Tear down
+## 6. Tear down
 ```bash
 AWS_PROFILE=<profile> bash scripts/aws_teardown.sh
 ```
-Asks for the account id and the word `DELETE`, empties the bucket (all versions), deletes the stack, then deletes the bucket. Download anything you need first.
+Asks for the account id and the word `DELETE`, deletes the stack first, and only if that succeeds empties the retained bucket (all versions) and deletes it. Download anything you need first.
 
-## 6. Cost expectations
+## 7. Cost expectations
 Prices change; verify every figure on the AWS pricing page before relying on it.
 
 | Item | Expectation |
@@ -63,7 +73,7 @@ Prices change; verify every figure on the AWS pricing page before relying on it.
 | CloudWatch Logs | Ingestion and storage per GB, 30-day retention. Verify on the AWS pricing page |
 | Bedrock model calls | Per input/output token, model and region dependent. Verify on the AWS pricing page |
 
-## 7. Security checklist
+## 8. Security checklist
 - [ ] Root has MFA and no access keys; daily work uses SSO or a limited user.
 - [ ] No keys in the repo, chat, `.env` or logs.
 - [ ] `TrustedPrincipalArn` is a single specific principal; consider `RequireMfa=true` for IAM users.

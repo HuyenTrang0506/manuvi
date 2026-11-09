@@ -29,7 +29,8 @@ Parameters:
   TrustedPrincipalArn:
     Type: String
     Description: ARN of the single user or role allowed to assume manuvi-app (for example your SSO role or IAM user).
-    AllowedPattern: "^arn:aws[a-z-]*:iam::[0-9]{12}:(user|role)/.+$"
+    AllowedPattern: "^arn:aws[a-z-]*:iam::[0-9]{12}:(user|role)/[A-Za-z0-9+=,.@_/-]+$"
+    ConstraintDescription: Must be a specific IAM user or role ARN (no wildcards).
   RequireMfa:
     Type: String
     Default: "false"
@@ -38,6 +39,8 @@ Parameters:
   BedrockModelArns:
     Type: CommaDelimitedList
     Default: ""
+    AllowedPattern: "^$|^arn:aws[a-z-]*:bedrock:[^*,]+(,arn:aws[a-z-]*:bedrock:[^*,]+)*$"
+    ConstraintDescription: Each entry must be a bedrock ARN without wildcards (no spaces after commas).
     Description: Comma-separated Bedrock foundation-model and inference-profile ARNs the app may invoke. Empty means no Bedrock access.
 
 Conditions:
@@ -70,10 +73,12 @@ Resources:
         Rules:
           - Id: expire-noncurrent-30d
             Status: Enabled
+            ExpiredObjectDeleteMarker: true
             NoncurrentVersionExpiration:
               NoncurrentDays: 30
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
+          # Traces are written as traces/<job_id>/trace.jsonl (keep this prefix in sync with the app).
           - Id: expire-traces-90d
             Status: Enabled
             Prefix: traces/
@@ -125,12 +130,17 @@ Resources:
             Effect: Allow
             Action: s3:ListBucket
             Resource: !GetAtt ArtifactBucket.Arn
+          - Sid: ArtifactBucketDoctor
+            Effect: Allow
+            Action:
+              - s3:GetBucketPublicAccessBlock
+              - s3:GetBucketLocation
+            Resource: !GetAtt ArtifactBucket.Arn
           - Sid: ArtifactObjects
             Effect: Allow
             Action:
               - s3:GetObject
               - s3:PutObject
-              - s3:DeleteObject
             Resource: !Sub "${ArtifactBucket.Arn}/*"
           - Sid: ReadManuviConfig
             Effect: Allow

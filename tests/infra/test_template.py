@@ -97,3 +97,35 @@ def test_log_group_and_budget(tpl):
     (b,) = _resources(tpl, "AWS::Budgets::Budget").values()
     thresholds = {n["Notification"]["Threshold"] for n in b["Properties"]["NotificationsWithSubscribers"]}
     assert {50, 80, 100} <= thresholds
+
+
+def test_policy_least_privilege_details(tpl):
+    (pol,) = _resources(tpl, "AWS::IAM::ManagedPolicy").values()
+    actions = set()
+    for stmt in pol["Properties"]["PolicyDocument"]["Statement"]:
+        if "Fn::If" in stmt:
+            stmt = stmt["Fn::If"][1]
+        if stmt["Effect"] == "Allow":
+            a = stmt["Action"]
+            actions |= set(a if isinstance(a, list) else [a])
+    assert "s3:DeleteObject" not in actions
+    assert {"s3:GetBucketPublicAccessBlock", "s3:GetBucketLocation"} <= actions
+
+
+def test_parameter_patterns_reject_wildcards(tpl):
+    import re
+    bed = re.compile(tpl["Parameters"]["BedrockModelArns"]["AllowedPattern"])
+    assert bed.match("")
+    assert bed.match("arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0")
+    assert not bed.match("*")
+    assert not bed.match("arn:aws:bedrock:us-east-1::foundation-model/*")
+    pr = re.compile(tpl["Parameters"]["TrustedPrincipalArn"]["AllowedPattern"])
+    assert pr.match("arn:aws:iam::123456789012:role/sso-admin")
+    assert not pr.match("arn:aws:iam::123456789012:role/*")
+
+
+def test_lifecycle_rules(tpl):
+    (bucket,) = _resources(tpl, "AWS::S3::Bucket").values()
+    rules = {r["Id"]: r for r in bucket["Properties"]["LifecycleConfiguration"]["Rules"]}
+    assert rules["expire-noncurrent-30d"]["ExpiredObjectDeleteMarker"] is True
+    assert rules["expire-traces-90d"]["Prefix"] == "traces/"
