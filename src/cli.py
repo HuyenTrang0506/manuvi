@@ -7,12 +7,14 @@ from src.intake.cli import intake as _intake_cmd
 from src.pipeline.cli import app as _pipeline_app
 from src.terms.cli import app as _terms_app
 from src.manuvi_cli import aws_app as _aws_app
+from src.eval.cli import app as _eval_app
 
 app = typer.Typer(help="Manuvi: EN -> VI technical manual translation.")
 app.command("intake")(_intake_cmd)
 app.add_typer(_pipeline_app, name="pipeline")
 app.add_typer(_terms_app, name="terms")
 app.add_typer(_aws_app, name="aws")
+app.add_typer(_eval_app, name="eval")
 web_app = typer.Typer(help="Hosted web portal helpers.")
 app.add_typer(web_app, name="web")
 
