@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Sign in - Manuvi</title>
+<link rel="stylesheet" href="/static/brand.css">
+<link rel="icon" href="/static/mark.svg" type="image/svg+xml">
+</head>
+<body>
+<main class="login" id="main">
+  <div class="panel">
+    <div class="brandline"><svg class="logo" width="148" height="34" viewBox="0 0 148 34" role="img" aria-label="Manuvi" focusable="false"><path class="mark-page" d="M5 3h14l8 8v20H5z"/><path class="mark-page" d="M19 3v8h8"/><rect class="mark-en" x="9" y="16" width="14" height="3" rx="1"/><rect class="mark-vi" x="9" y="22" width="9" height="3" rx="1"/><text class="wm" x="36" y="25">manuvi</text></svg></div>
+    <h1>Sign in</h1>
+    <p>Manuals are private. Sign in to upload, track and review translations.</p>
+    <form id="f" novalidate>
+      <div class="field"><label for="u">User name</label><input id="u" name="user" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+      <div class="field"><label for="p">Password</label><input id="p" name="password" type="password" autocomplete="current-password" required></div>
+      <p id="err" class="err-text" role="alert" aria-live="assertive"></p>
+      <button class="primary" id="go" type="submit">Sign in</button>
+    </form>
+  </div>
+</main>
+<script type="application/json" id="cfg">__MANUVI_CONFIG__</script>
+<script src="/static/login.js"></script>
+</body></html>

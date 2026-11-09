@@ -30,3 +30,10 @@ Anything that touches identity and security: confirm the account is hers, create
 
 ## Open points to verify in the real account
 Which services the organization allows (EC2, Lightsail, SQS, S3 are expected to work; Bedrock does not). EC2 GPU quota for new accounts is usually 0, so GPU workers need a quota request or stay on the Mac. Prices must be checked on the AWS pricing pages.
+
+## Implementation notes (web + worker)
+- Code: `src/jobs` (model, `DirQueue`/`SqsQueue`, `LocalStore`/`S3Store`), `src/worker` (`manuvi worker`), `src/webapp` (`portal.py`, `auth.py`, `hosted.py`).
+- Env: `MANUVI_QUEUE=dir|sqs`, `MANUVI_QUEUE_URL`, `MANUVI_DLQ_URL`, `MANUVI_STORE=local|s3`, `MANUVI_S3_BUCKET`, `MANUVI_DATA_DIR`, `MANUVI_PROFILE` (worker, default `qa` = local Ollama), `MANUVI_WEB_USERS` (JSON `[{user, role, hash}]`, hash from `manuvi web hash-password`), `MANUVI_ALLOWED_HOSTS`, `MANUVI_TRUSTED_PROXIES`, `MANUVI_COOKIE_SECURE`, `MANUVI_MAX_UPLOAD_MB`, `MANUVI_APPROVE_BATCHES`.
+- Container entry: `uvicorn --factory src.webapp.hosted:create_app --host 0.0.0.0 --port 8000`; `GET /healthz` needs no login. Local review app: `manuvi webapp --jobdir ...` (127.0.0.1 only).
+- Store layout per job: `job.json` (web), `status.json` (worker), `cancel.json`, `input.pdf`, `chunks.json`, `segments.json`, `terms.json`, `audit.jsonl`, `state/*.sqlite` (resume), `out/*` (downloads). Web and worker write different files; `segments.json` is merged by `_pv` so human decisions survive a re-run.
+- Known limit: web and worker can both write `segments.json` in the same second (last writer wins); the worker merges before every upload, the web app pulls before every change.

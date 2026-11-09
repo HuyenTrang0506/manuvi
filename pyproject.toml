@@ -33,7 +33,7 @@ testpaths = ["tests"]
 [tool.setuptools.package-data]
 "src.glossary" = ["seeds/*.csv"]
 "src.intake" = ["patterns.yaml"]
-"src.webapp" = ["static/*.html"]
+"src.webapp" = ["static/*.html", "static/*.css", "static/*.js", "static/*.svg", "static/fonts/*"]
 
 [tool.setuptools.packages.find]
 where = ["."]
