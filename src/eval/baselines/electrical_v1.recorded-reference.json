@@ -1,0 +1,5100 @@
+{
+ "schema": 1,
+ "model": "recorded",
+ "set": {
+  "sha256": "34923e6af20dd0b06c03383654d00d25c523877bc19f05a9eb93f30ac05ffe09",
+  "n_cases": 55
+ },
+ "glossary": {
+  "sha256": "bdecd64e6512b22ee24b7fa9de5b491e60251cb63a0bb722a0f6598e38d80b5e",
+  "n_terms": 66,
+  "status": "PROPOSED terms, not approved by founder/uncle"
+ },
+ "meta": {
+  "run_id": "base",
+  "prompt_version": "eval-v1",
+  "data_class": "customer",
+  "created": "2026-11-09T13:53:26+00:00"
+ },
+ "metrics": {
+  "protected_codes": {
+   "kind": "hard",
+   "value": 1.0,
+   "n": 37
+  },
+  "number_unit": {
+   "kind": "hard",
+   "value": 1.0,
+   "n": 22
+  },
+  "safety_signals": {
+   "kind": "hard",
+   "value": 1.0,
+   "n": 6
+  },
+  "glossary_hit": {
+   "kind": "soft",
+   "value": 1.0,
+   "n": 55
+  },
+  "length_ratio": {
+   "kind": "soft",
+   "value": 1.0,
+   "n": 55
+  },
+  "leakage": {
+   "kind": "soft",
+   "value": 0.0,
+   "n": 55
+  },
+  "placeholder_roundtrip": {
+   "kind": "soft",
+   "value": 1.0,
+   "n": 26
+  }
+ },
+ "consistency": {
+  "terms_seen": 62,
+  "inconsistent": [],
+  "score": 1.0
+ },
+ "domains": {
+  "charging": {
+   "n": 3,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 3
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    }
+   }
+  },
+  "connector": {
+   "n": 3,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 3
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 2
+    }
+   }
+  },
+  "controller": {
+   "n": 2,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 2
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 2
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 2
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": null,
+     "n": 0
+    }
+   }
+  },
+  "diagram_legend": {
+   "n": 4,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 4
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 1
+    }
+   }
+  },
+  "electrical": {
+   "n": 55,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 37
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 22
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 6
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 55
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 55
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 55
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 26
+    }
+   }
+  },
+  "fuse_relay": {
+   "n": 9,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 9
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 6
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 9
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 9
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 9
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 6
+    }
+   }
+  },
+  "harness": {
+   "n": 4,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 4
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 2
+    }
+   }
+  },
+  "inspection": {
+   "n": 2,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 2
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 2
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 2
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": null,
+     "n": 0
+    }
+   }
+  },
+  "measurement": {
+   "n": 10,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 10
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 8
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 10
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 10
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 10
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 9
+    }
+   }
+  },
+  "monitor": {
+   "n": 1,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 1
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 1
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 1
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": null,
+     "n": 0
+    }
+   }
+  },
+  "operation": {
+   "n": 4,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 4
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": null,
+     "n": 0
+    }
+   }
+  },
+  "safety": {
+   "n": 6,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 4
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 6
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 6
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 6
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 6
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    }
+   }
+  },
+  "sensor": {
+   "n": 7,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 5
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 4
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 7
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 7
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 7
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    }
+   }
+  },
+  "solenoid": {
+   "n": 1,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 1
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 1
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 1
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 1
+    }
+   }
+  },
+  "starting": {
+   "n": 5,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 5
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 5
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 5
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": null,
+     "n": 0
+    }
+   }
+  },
+  "torque": {
+   "n": 3,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 3
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    }
+   }
+  },
+  "troubleshooting": {
+   "n": 3,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 2
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 3
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 3
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": null,
+     "n": 0
+    }
+   }
+  },
+  "wire_color": {
+   "n": 6,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 2
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 6
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 6
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 6
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 1
+    }
+   }
+  }
+ },
+ "priorities": {
+  "p0": {
+   "n": 16,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 10
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 8
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 4
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 16
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 16
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 16
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 9
+    }
+   }
+  },
+  "p1": {
+   "n": 26,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 22
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 12
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 26
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 26
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 26
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 15
+    }
+   }
+  },
+  "p2": {
+   "n": 13,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 5
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 2
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 13
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 13
+    },
+    "leakage": {
+     "kind": "soft",
+     "value": 0.0,
+     "n": 13
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 2
+    }
+   }
+  }
+ },
+ "terms": {
+  "air conditioner": {
+   "hit": 1,
+   "total": 1
+  },
+  "alternator": {
+   "hit": 2,
+   "total": 2
+  },
+  "battery": {
+   "hit": 6,
+   "total": 6
+  },
+  "battery relay": {
+   "hit": 2,
+   "total": 2
+  },
+  "battery terminal": {
+   "hit": 1,
+   "total": 1
+  },
+  "black": {
+   "hit": 3,
+   "total": 3
+  },
+  "blue": {
+   "hit": 1,
+   "total": 1
+  },
+  "brown": {
+   "hit": 1,
+   "total": 1
+  },
+  "buzzer": {
+   "hit": 1,
+   "total": 1
+  },
+  "charge lamp": {
+   "hit": 1,
+   "total": 1
+  },
+  "circuit": {
+   "hit": 4,
+   "total": 4
+  },
+  "circuit breaker": {
+   "hit": 1,
+   "total": 1
+  },
+  "connector": {
+   "hit": 7,
+   "total": 7
+  },
+  "continuity": {
+   "hit": 2,
+   "total": 2
+  },
+  "controller": {
+   "hit": 5,
+   "total": 5
+  },
+  "coolant temperature sensor": {
+   "hit": 1,
+   "total": 1
+  },
+  "current": {
+   "hit": 2,
+   "total": 2
+  },
+  "diode": {
+   "hit": 1,
+   "total": 1
+  },
+  "engine": {
+   "hit": 4,
+   "total": 4
+  },
+  "engine oil pressure switch": {
+   "hit": 1,
+   "total": 1
+  },
+  "engine speed sensor": {
+   "hit": 1,
+   "total": 1
+  },
+  "fuel level sensor": {
+   "hit": 1,
+   "total": 1
+  },
+  "fuse": {
+   "hit": 6,
+   "total": 6
+  },
+  "fuse box": {
+   "hit": 3,
+   "total": 3
+  },
+  "glow plug": {
+   "hit": 1,
+   "total": 1
+  },
+  "green": {
+   "hit": 1,
+   "total": 1
+  },
+  "ground": {
+   "hit": 4,
+   "total": 4
+  },
+  "harness": {
+   "hit": 3,
+   "total": 3
+  },
+  "horn": {
+   "hit": 2,
+   "total": 2
+  },
+  "hydraulic oil temperature sensor": {
+   "hit": 1,
+   "total": 1
+  },
+  "indicator lamp": {
+   "hit": 1,
+   "total": 1
+  },
+  "joint connector": {
+   "hit": 1,
+   "total": 1
+  },
+  "key switch": {
+   "hit": 5,
+   "total": 5
+  },
+  "legend": {
+   "hit": 2,
+   "total": 2
+  },
+  "monitor": {
+   "hit": 3,
+   "total": 3
+  },
+  "multimeter": {
+   "hit": 2,
+   "total": 2
+  },
+  "open circuit": {
+   "hit": 1,
+   "total": 1
+  },
+  "orange": {
+   "hit": 1,
+   "total": 1
+  },
+  "pressure sensor": {
+   "hit": 2,
+   "total": 2
+  },
+  "pressure switch": {
+   "hit": 2,
+   "total": 2
+  },
+  "proportional solenoid valve": {
+   "hit": 1,
+   "total": 1
+  },
+  "pump controller": {
+   "hit": 1,
+   "total": 1
+  },
+  "red": {
+   "hit": 1,
+   "total": 1
+  },
+  "relay": {
+   "hit": 6,
+   "total": 6
+  },
+  "resistance": {
+   "hit": 5,
+   "total": 5
+  },
+  "short circuit": {
+   "hit": 2,
+   "total": 2
+  },
+  "solenoid": {
+   "hit": 1,
+   "total": 1
+  },
+  "starter": {
+   "hit": 4,
+   "total": 4
+  },
+  "starter relay": {
+   "hit": 2,
+   "total": 2
+  },
+  "switch": {
+   "hit": 2,
+   "total": 2
+  },
+  "terminal": {
+   "hit": 6,
+   "total": 6
+  },
+  "terminal block": {
+   "hit": 1,
+   "total": 1
+  },
+  "tightening torque": {
+   "hit": 1,
+   "total": 1
+  },
+  "troubleshooting": {
+   "hit": 1,
+   "total": 1
+  },
+  "voltage": {
+   "hit": 5,
+   "total": 5
+  },
+  "white": {
+   "hit": 2,
+   "total": 2
+  },
+  "wiper motor": {
+   "hit": 1,
+   "total": 1
+  },
+  "wire": {
+   "hit": 7,
+   "total": 7
+  },
+  "wiring": {
+   "hit": 2,
+   "total": 2
+  },
+  "wiring diagram": {
+   "hit": 1,
+   "total": 1
+  },
+  "work light": {
+   "hit": 1,
+   "total": 1
+  },
+  "yellow": {
+   "hit": 1,
+   "total": 1
+  }
+ },
+ "cost": {
+  "total_usd": 0.0,
+  "tokens_in": 0,
+  "tokens_out": 0,
+  "cache_hits": 0,
+  "pages": 14,
+  "cost_per_page_usd": 0.0,
+  "by_page": {
+   "1": 0.0,
+   "2": 0.0,
+   "3": 0.0,
+   "4": 0.0,
+   "5": 0.0,
+   "6": 0.0,
+   "7": 0.0,
+   "8": 0.0,
+   "9": 0.0,
+   "10": 0.0,
+   "11": 0.0,
+   "12": 0.0,
+   "13": 0.0,
+   "14": 0.0
+  }
+ },
+ "cases": [
+  {
+   "id": "EL-001",
+   "domains": [
+    "electrical",
+    "operation"
+   ],
+   "priority": "p0",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "key switch",
+       "charge lamp"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.076,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-002",
+   "domains": [
+    "electrical",
+    "operation"
+   ],
+   "priority": "p0",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "key switch",
+       "terminal",
+       "battery"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.886,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-003",
+   "domains": [
+    "electrical",
+    "safety"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "unexpected": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "battery",
+       "wiring",
+       "short circuit"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.958,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-004",
+   "domains": [
+    "electrical",
+    "safety"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "unexpected": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "battery",
+       "voltage",
+       "terminal"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.98,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-005",
+   "domains": [
+    "electrical",
+    "safety",
+    "torque"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "unexpected": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "battery terminal"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.014,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-006",
+   "domains": [
+    "electrical",
+    "connector"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "connector",
+       "controller"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.833,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-007",
+   "domains": [
+    "electrical",
+    "connector",
+    "measurement"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "connector",
+       "resistance"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.724,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-008",
+   "domains": [
+    "electrical",
+    "measurement"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "resistance"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.892,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-009",
+   "domains": [
+    "electrical",
+    "fuse_relay"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "fuse"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.982,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-010",
+   "domains": [
+    "electrical",
+    "fuse_relay"
+   ],
+   "priority": "p0",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "fuse",
+       "controller",
+       "circuit"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.052,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-011",
+   "domains": [
+    "electrical",
+    "fuse_relay"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "fuse",
+       "wiring",
+       "short circuit"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.257,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-012",
+   "domains": [
+    "electrical",
+    "fuse_relay"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "relay",
+       "work light",
+       "circuit"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.146,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-013",
+   "domains": [
+    "electrical",
+    "fuse_relay",
+    "measurement"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "relay",
+       "continuity",
+       "terminal",
+       "multimeter"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.0,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-014",
+   "domains": [
+    "electrical",
+    "wire_color",
+    "diagram_legend"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "wire",
+       "red",
+       "black",
+       "white",
+       "yellow"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.911,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-015",
+   "domains": [
+    "electrical",
+    "wire_color"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "wire",
+       "black",
+       "white",
+       "ground",
+       "terminal"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.849,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-016",
+   "domains": [
+    "electrical",
+    "wire_color",
+    "connector"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "wire",
+       "green",
+       "connector"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.964,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-017",
+   "domains": [
+    "electrical",
+    "wire_color"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "wire",
+       "blue",
+       "brown",
+       "pressure switch"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.943,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-018",
+   "domains": [
+    "electrical",
+    "wire_color"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "wire",
+       "orange",
+       "horn"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.721,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-019",
+   "domains": [
+    "electrical",
+    "harness"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "harness",
+       "battery relay",
+       "starter"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.891,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-020",
+   "domains": [
+    "electrical",
+    "harness",
+    "inspection"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "harness",
+       "connector",
+       "terminal"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.119,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-021",
+   "domains": [
+    "electrical",
+    "charging",
+    "measurement"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "engine",
+       "alternator",
+       "voltage"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.025,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-022",
+   "domains": [
+    "electrical",
+    "charging"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "battery"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.679,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-023",
+   "domains": [
+    "electrical",
+    "starting"
+   ],
+   "priority": "p0",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "starter",
+       "engine",
+       "key switch"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.147,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-024",
+   "domains": [
+    "electrical",
+    "starting",
+    "troubleshooting"
+   ],
+   "priority": "p0",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "starter",
+       "starter relay",
+       "battery relay"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.987,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-025",
+   "domains": [
+    "electrical",
+    "starting"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "solenoid",
+       "key switch"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.286,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-026",
+   "domains": [
+    "electrical",
+    "solenoid",
+    "measurement"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "proportional solenoid valve",
+       "resistance"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.75,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-027",
+   "domains": [
+    "electrical",
+    "controller",
+    "sensor"
+   ],
+   "priority": "p0",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "pump controller",
+       "pressure sensor",
+       "engine speed sensor"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.878,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-028",
+   "domains": [
+    "electrical",
+    "sensor",
+    "measurement"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "voltage",
+       "pressure sensor"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.044,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-029",
+   "domains": [
+    "electrical",
+    "sensor"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "pressure switch"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.738,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-030",
+   "domains": [
+    "electrical",
+    "sensor"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "engine oil pressure switch"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.136,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-031",
+   "domains": [
+    "electrical",
+    "sensor",
+    "measurement"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "coolant temperature sensor",
+       "resistance"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.038,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-032",
+   "domains": [
+    "electrical",
+    "sensor"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "hydraulic oil temperature sensor",
+       "monitor"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.024,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-033",
+   "domains": [
+    "electrical",
+    "sensor",
+    "troubleshooting"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "fuel level sensor",
+       "wire",
+       "monitor"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.099,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-034",
+   "domains": [
+    "electrical",
+    "monitor"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "indicator lamp",
+       "buzzer"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.659,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-035",
+   "domains": [
+    "electrical",
+    "operation"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "horn",
+       "switch"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.887,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-036",
+   "domains": [
+    "electrical",
+    "starting"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "glow plug",
+       "resistance"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.849,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-037",
+   "domains": [
+    "electrical",
+    "measurement"
+   ],
+   "priority": "p2",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "wiper motor",
+       "current"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.325,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-038",
+   "domains": [
+    "electrical",
+    "torque"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "fuse box"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.902,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-039",
+   "domains": [
+    "electrical",
+    "charging",
+    "torque"
+   ],
+   "priority": "p1",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "alternator",
+       "tightening torque"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.902,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-040",
+   "domains": [
+    "electrical",
+    "diagram_legend"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "legend",
+       "battery",
+       "fuse box",
+       "controller",
+       "starter"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.255,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-041",
+   "domains": [
+    "electrical",
+    "diagram_legend"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "legend",
+       "ground",
+       "switch",
+       "connector",
+       "fuse",
+       "relay"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.1,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-042",
+   "domains": [
+    "electrical",
+    "diagram_legend"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "fuse box",
+       "wiring diagram"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.892,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-043",
+   "domains": [
+    "electrical",
+    "safety"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "unexpected": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "terminal",
+       "engine",
+       "voltage"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.957,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-044",
+   "domains": [
+    "electrical",
+    "wire_color",
+    "safety"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "unexpected": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "wire"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.913,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-045",
+   "domains": [
+    "electrical",
+    "safety",
+    "fuse_relay"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "unexpected": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "relay"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.083,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-046",
+   "domains": [
+    "electrical",
+    "controller"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "ground",
+       "controller"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.913,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-047",
+   "domains": [
+    "electrical",
+    "harness",
+    "measurement"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "harness",
+       "connector",
+       "continuity",
+       "open circuit"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.887,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-048",
+   "domains": [
+    "electrical",
+    "fuse_relay"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "air conditioner",
+       "circuit",
+       "fuse",
+       "relay"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.043,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-049",
+   "domains": [
+    "electrical",
+    "measurement"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "multimeter",
+       "black",
+       "ground"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.987,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-050",
+   "domains": [
+    "electrical",
+    "starting",
+    "troubleshooting"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "troubleshooting",
+       "engine",
+       "battery",
+       "voltage",
+       "starter relay",
+       "fuse"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.961,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-051",
+   "domains": [
+    "electrical",
+    "operation"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "key switch",
+       "monitor"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.167,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-052",
+   "domains": [
+    "electrical",
+    "inspection"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "controller",
+       "connector"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.855,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-053",
+   "domains": [
+    "electrical",
+    "fuse_relay"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "circuit breaker"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.872,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-054",
+   "domains": [
+    "electrical",
+    "fuse_relay"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "diode",
+       "current",
+       "relay",
+       "circuit"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.017,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-055",
+   "domains": [
+    "electrical",
+    "harness"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "terminal block",
+       "joint connector"
+      ],
+      "misses": [],
+      "forbidden": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.951,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  }
+ ]
+}
