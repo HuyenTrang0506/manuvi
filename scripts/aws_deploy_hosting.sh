@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Deploy infra/manuvi-hosting.yaml (needs the foundation stack). Never prints credentials.
-# Required env: AWS_PROFILE, TRUSTED_PRINCIPAL_ARN, SOURCE_TARBALL_URL
+# Required env: AWS_PROFILE, TRUSTED_PRINCIPAL_ARN, SOURCE_TARBALL_URL, SOURCE_SHA256 (sha256 of that tarball)
 # Optional env: DOMAIN_NAME, INSTANCE_TYPE (t4g.small), ARCHITECTURE (arm64),
-#   VPC_ID, SUBNET_ID (default VPC / first default subnet), FOUNDATION_STACK (manuvi-foundation)
+#   DISABLE_API_TERMINATION (true), VPC_ID, SUBNET_ID (default VPC / first default subnet), FOUNDATION_STACK (manuvi-foundation)
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,6 +11,8 @@ source "$here/aws_common.sh"
 
 : "${TRUSTED_PRINCIPAL_ARN:?Set TRUSTED_PRINCIPAL_ARN}"
 : "${SOURCE_TARBALL_URL:?Set SOURCE_TARBALL_URL (public GitHub .tar.gz, ideally a tag)}"
+: "${SOURCE_SHA256:?Set SOURCE_SHA256 (curl -fsSL \$SOURCE_TARBALL_URL | sha256sum, from a copy you trust)}"
+[[ "$SOURCE_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "SOURCE_SHA256 must be 64 lowercase hex characters." >&2; exit 1; }
 
 STACK_NAME="${HOSTING_STACK_NAME:-manuvi-hosting}"
 foundation="${FOUNDATION_STACK:-manuvi-foundation}"
@@ -45,6 +47,8 @@ aws cloudformation deploy \
     "InstanceType=${INSTANCE_TYPE:-t4g.small}" \
     "Architecture=${ARCHITECTURE:-arm64}" \
     "SourceTarballUrl=${SOURCE_TARBALL_URL}" \
+    "SourceSha256=${SOURCE_SHA256}" \
+    "DisableApiTermination=${DISABLE_API_TERMINATION:-true}" \
     "DomainName=${DOMAIN_NAME:-}"
 
 aws cloudformation describe-stacks --stack-name "$STACK_NAME" \

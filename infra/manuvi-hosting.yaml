@@ -11,6 +11,8 @@ Description: >-
 #   /manuvi/prod/web/users and is read by the container at start.
 # - Stop the instance when idle (scripts/aws_stop_start.sh). The Elastic IP is free while
 #   attached to a running instance; verify idle-address pricing on the AWS pricing page.
+# - SourceSha256 pins the tarball content; DisableApiTermination (default true) protects the instance.
+# - The portal audit log is written to s3://<bucket>/portal/audit/ (bucket versioning is on in the foundation stack).
 # - InstanceType must match Architecture (t4g = arm64, t3 = x86_64); a Rule enforces this.
 
 Parameters:
@@ -46,6 +48,21 @@ Parameters:
       https://github.com/OWNER/REPO/archive/refs/tags/v0.1.0.tar.gz
     AllowedPattern: "^https://(github\\.com|codeload\\.github\\.com)/[A-Za-z0-9._/-]+\\.tar\\.gz$"
     ConstraintDescription: Must be an https GitHub .tar.gz URL.
+  SourceSha256:
+    Type: String
+    Description: >-
+      SHA-256 (64 lowercase hex characters) of the source tarball above. The instance verifies it at boot and
+      stops before anything is built or started when it does not match. Compute it yourself from a copy you
+      trust: curl -fsSL <SourceTarballUrl> | sha256sum
+    AllowedPattern: "^[a-f0-9]{64}$"
+    ConstraintDescription: Must be 64 lowercase hex characters.
+  DisableApiTermination:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Termination protection for the web instance. Keep true. Set false (update the stack first) only when you
+      really want to delete the stack; see docs/HOSTING.md.
   DomainName:
     Type: String
     Default: ""
@@ -155,6 +172,13 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}/jobs/*"
+              # Portal audit log: one new object per event, never deleted by the app (no s3:DeleteObject anywhere).
+              - Sid: PortalAuditObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}/portal/audit/*"
               - Sid: ReadWebConfigOnly
                 Effect: Allow
                 Action: ssm:GetParameter
@@ -261,6 +285,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       SubnetId: !Ref SubnetId
+      DisableApiTermination: !Ref DisableApiTermination
       LaunchTemplate:
         LaunchTemplateId: !Ref WebLaunchTemplate
         Version: !GetAtt WebLaunchTemplate.LatestVersionNumber
@@ -277,7 +302,11 @@ Resources:
             dnf install -y docker tar gzip
             systemctl enable --now docker
             mkdir -p /opt/manuvi/src
-            curl -fsSL "${SourceTarballUrl}" | tar -xz --strip-components=1 -C /opt/manuvi/src
+            # Verify the tarball before anything in it runs; set -e stops the boot on a mismatch.
+            curl -fsSL -o /tmp/manuvi-src.tar.gz "${SourceTarballUrl}"
+            echo "${SourceSha256}  /tmp/manuvi-src.tar.gz" | sha256sum -c -
+            tar -xzf /tmp/manuvi-src.tar.gz --strip-components=1 -C /opt/manuvi/src
+            rm -f /tmp/manuvi-src.tar.gz
             cat > /opt/manuvi/.env <<'ENVEOF'
             MANUVI_AWS_REGION=${AWS::Region}
             MANUVI_S3_BUCKET=${ArtifactBucketName}

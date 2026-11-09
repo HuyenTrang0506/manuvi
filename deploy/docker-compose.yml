@@ -12,6 +12,12 @@ services:
       MANUVI_DATA_DIR: /var/lib/manuvi
       # Computed by start.sh (domain, or public IP/DNS from IMDS); the app rejects other Host headers.
       MANUVI_ALLOWED_HOSTS: ${MANUVI_ALLOWED_HOSTS:-}
+      # X-Forwarded-* are believed only from the Caddy container (fixed address below), not from '*'.
+      MANUVI_FORWARDED_ALLOW_IPS: 172.29.0.2
+      # The compose network: the only peers whose CF-Connecting-IP may count (and only with MANUVI_TRUST_CF=1).
+      MANUVI_TRUSTED_PROXIES: 172.29.0.0/24
+      # 1 only when the Cloudflare Tunnel is on (MANUVI_TUNNEL=1): then CF-Connecting-IP is believed from that network.
+      MANUVI_TRUST_CF: ${MANUVI_TUNNEL:-0}
     volumes:
       - app-data:/var/lib/manuvi
     read_only: true
@@ -28,6 +34,9 @@ services:
     restart: unless-stopped
     depends_on:
       - app
+    networks:
+      default:
+        ipv4_address: 172.29.0.2
     ports:
       - "80:80"
       - "443:443"
@@ -54,6 +63,12 @@ services:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
     depends_on:
       - caddy
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.29.0.0/24
 
 volumes:
   app-data:
