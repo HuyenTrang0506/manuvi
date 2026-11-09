@@ -1,0 +1,211 @@
+"""Scoring a run, per-case / per-domain / per-priority aggregation, JSON + Markdown, and the regression gate."""
+from __future__ import annotations
+
+import json
+from collections import defaultdict
+from typing import Optional
+
+from pydantic import BaseModel
+
+from . import metrics as M
+from .cases import EvalCase, GlossaryTerm, glossary_hash, set_hash
+
+DEFAULT_SOFT_TOLERANCE_PCT = 3.0
+EPS = 1e-9
+
+
+class Output(BaseModel):
+    """One model output for one case. `output` is the unmasked VI text the metrics see."""
+    id: str
+    output: str = ""
+    masked_output: Optional[str] = None
+    mapping: Optional[dict[str, str]] = None
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost_usd: float = 0.0
+    cache_hit: bool = False
+    error: str = ""
+
+
+def score_case(case: EvalCase, out: Output, glossary: dict[str, GlossaryTerm]) -> dict[str, M.MetricResult]:
+    t = out.output
+    return {
+        "protected_codes": M.protected_codes(case, t),
+        "number_unit": M.number_unit(case, t),
+        "safety_signals": M.safety_signals(case, t),
+        "glossary_hit": M.glossary_hit(case, t, glossary),
+        "length_ratio": M.length_ratio(case, t),
+        "leakage": M.leakage(case, t, glossary),
+        "placeholder_roundtrip": M.placeholder_roundtrip(out.masked_output, out.mapping),
+    }
+
+
+def _aggregate(rows: list[dict]) -> dict[str, dict]:
+    """rows: per-case entries. Returns metric -> {kind, value, n}. Value None when nothing applies."""
+    agg: dict[str, dict] = {}
+    for name in (*M.HARD, *M.SOFT):
+        kind = "hard" if name in M.HARD else "soft"
+        vals = [(r["metrics"][name]) for r in rows if r["metrics"][name]["score"] is not None]
+        if not vals:
+            agg[name] = {"kind": kind, "value": None, "n": 0}
+            continue
+        if name == "glossary_hit":
+            hit = sum(len(v["detail"]["hits"]) for v in vals)
+            tot = sum(len(v["detail"]["hits"]) + len(v["detail"]["misses"]) for v in vals)
+            value = hit / tot
+        elif name == "leakage":
+            value = sum(v["score"] for v in vals) / len(vals)
+        else:
+            value = sum(1 for v in vals if v["passed"]) / len(vals)
+        agg[name] = {"kind": kind, "value": round(value, 6), "n": len(vals)}
+    return agg
+
+
+def build_report(cases: list[EvalCase], outputs: dict[str, Output], glossary: dict[str, GlossaryTerm], *,
+                 model: str = "", meta: Optional[dict] = None) -> dict:
+    rows = []
+    for c in cases:
+        out = outputs.get(c.id) or Output(id=c.id, error="missing output")
+        res = score_case(c, out, glossary)
+        m = {k: {"score": None if v.score is None else round(v.score, 6), "passed": v.passed, "detail": v.detail}
+             for k, v in res.items()}
+        rows.append({"id": c.id, "domains": c.domains, "priority": c.priority, "severity": c.severity,
+                     "hard_pass": all(m[h]["passed"] is not False for h in M.HARD), "error": out.error,
+                     "metrics": m})
+    cons = M.consistency(cases, {i: o.output for i, o in outputs.items()}, glossary)
+
+    def group(key_fn) -> dict:
+        buckets: dict[str, list[dict]] = defaultdict(list)
+        for r, c in zip(rows, cases):
+            for k in key_fn(c):
+                buckets[k].append(r)
+        return {k: {"n": len(v), "metrics": _aggregate(v)} for k, v in sorted(buckets.items())}
+
+    by_term: dict[str, dict] = {}
+    for r in rows:
+        d = r["metrics"]["glossary_hit"]["detail"]
+        for t in d.get("hits", []):
+            by_term.setdefault(t, {"hit": 0, "total": 0})["hit"] += 1
+            by_term[t]["total"] += 1
+        for t in d.get("misses", []):
+            by_term.setdefault(t, {"hit": 0, "total": 0})["total"] += 1
+
+    cost = outputs and {
+        "total_usd": round(sum(o.cost_usd for o in outputs.values()), 6),
+        "tokens_in": sum(o.tokens_in for o in outputs.values()),
+        "tokens_out": sum(o.tokens_out for o in outputs.values()),
+        "cache_hits": sum(1 for o in outputs.values() if o.cache_hit),
+    } or {}
+    if cost:
+        pages: dict[int, float] = defaultdict(float)
+        for c in cases:
+            pages[c.page] += outputs[c.id].cost_usd if c.id in outputs else 0.0
+        cost["pages"] = len(pages)
+        cost["cost_per_page_usd"] = round(cost["total_usd"] / len(pages), 6) if pages else 0.0
+        cost["by_page"] = {str(k): round(v, 6) for k, v in sorted(pages.items())}
+    return {
+        "schema": 1, "model": model, "set": {"sha256": set_hash(cases), "n_cases": len(cases)},
+        "glossary": {"sha256": glossary_hash(glossary), "n_terms": len(glossary),
+                     "status": "PROPOSED terms, not approved by founder/uncle"},
+        "meta": meta or {},
+        "metrics": _aggregate(rows), "consistency": cons,
+        "domains": group(lambda c: c.domains), "priorities": group(lambda c: [c.priority]),
+        "terms": dict(sorted(by_term.items())), "cost": cost, "cases": rows,
+    }
+
+
+# --- gate ---------------------------------------------------------------------------------------------
+class GateResult(BaseModel):
+    ok: bool
+    failures: list[str] = []
+    warnings: list[str] = []
+
+
+def _worse_soft(name: str, cur: float, base: float, tol_pct: float) -> bool:
+    if name in M.LOWER_IS_BETTER:
+        return cur > base + tol_pct / 100
+    return cur < base * (1 - tol_pct / 100) - EPS
+
+
+def gate(current: dict, baseline: dict, soft_tolerance_pct: float = DEFAULT_SOFT_TOLERANCE_PCT) -> GateResult:
+    """Fail on any drop of a hard metric (overall, per domain, per priority, per case) and on a drop of a soft
+    metric larger than `soft_tolerance_pct` (relative; leakage: absolute percentage points of increase)."""
+    fails: list[str] = []
+    warns: list[str] = []
+    if current["set"]["sha256"] != baseline["set"]["sha256"]:
+        return GateResult(ok=False, failures=["eval set differs from the baseline's set: re-baseline by PR"])
+    if current["glossary"]["sha256"] != baseline["glossary"]["sha256"]:
+        warns.append("glossary changed since the baseline")
+
+    def compare(scope: str, cur: dict, base: dict) -> None:
+        for name in (*M.HARD, *M.SOFT):
+            c, b = cur.get(name, {}), base.get(name, {})
+            if c.get("value") is None or b.get("value") is None:
+                if b.get("value") is not None and c.get("value") is None:
+                    fails.append(f"{scope}: {name} no longer measured")
+                continue
+            if name in M.HARD:
+                if c["value"] < b["value"] - EPS:
+                    fails.append(f"{scope}: hard metric {name} dropped {b['value']:.4f} -> {c['value']:.4f}")
+            elif _worse_soft(name, c["value"], b["value"], soft_tolerance_pct):
+                fails.append(f"{scope}: soft metric {name} {b['value']:.4f} -> {c['value']:.4f} "
+                             f"(tolerance {soft_tolerance_pct}%)")
+
+    compare("overall", current["metrics"], baseline["metrics"])
+    for section in ("domains", "priorities"):
+        for k, v in current[section].items():
+            if k in baseline[section]:
+                compare(f"{section[:-1]} {k}", v["metrics"], baseline[section][k]["metrics"])
+    b_cons, c_cons = baseline["consistency"].get("score"), current["consistency"].get("score")
+    if b_cons is not None and c_cons is not None and _worse_soft("consistency", c_cons, b_cons, soft_tolerance_pct):
+        fails.append(f"overall: soft metric consistency {b_cons:.4f} -> {c_cons:.4f}")
+    base_pass = {r["id"]: r["hard_pass"] for r in baseline["cases"]}
+    for r in current["cases"]:
+        if base_pass.get(r["id"]) and not r["hard_pass"]:
+            bad = [h for h in M.HARD if r["metrics"][h]["passed"] is False]
+            fails.append(f"case {r['id']} ({r['priority']}) newly fails hard metric(s): {', '.join(bad)}")
+    return GateResult(ok=not fails, failures=fails, warnings=warns)
+
+
+# --- markdown -------------------------------------------------------------------------------------------
+def _fmt(m: dict) -> str:
+    v = m["value"]
+    return "n/a" if v is None else f"{v * 100:.1f}%"
+
+
+def render_markdown(rep: dict, gate_result: Optional[GateResult] = None) -> str:
+    L = [f"# Eval report: {rep['model'] or 'unknown model'}", "",
+         f"Set `{rep['set']['sha256'][:12]}` ({rep['set']['n_cases']} cases). "
+         f"Glossary `{rep['glossary']['sha256'][:12]}`: {rep['glossary']['status']}.", ""]
+    if gate_result is not None:
+        L += [f"## Gate: {'PASS' if gate_result.ok else 'FAIL'}", ""]
+        L += [f"- FAIL {f}" for f in gate_result.failures] + [f"- warn {w}" for w in gate_result.warnings] + [""]
+    L += ["## Overall", "", "| metric | kind | value | n |", "|---|---|---|---|"]
+    for k, v in rep["metrics"].items():
+        L.append(f"| {k} | {v['kind']} | {_fmt(v)} | {v['n']} |")
+    c = rep["consistency"]
+    L += ["", f"Consistency (same EN term -> same VI term): "
+              f"{'n/a' if c['score'] is None else f'{c['score'] * 100:.1f}%'} "
+              f"({len(c['inconsistent'])} inconsistent of {c['terms_seen']} terms)", ""]
+    for section, title in (("priorities", "By priority"), ("domains", "By domain")):
+        L += [f"## {title}", "", "| " + section[:-1] + " | n | " + " | ".join(M.HARD + M.SOFT) + " |",
+              "|---|---|" + "---|" * len(M.HARD + M.SOFT)]
+        for k, v in rep[section].items():
+            L.append(f"| {k} | {v['n']} | " + " | ".join(_fmt(v["metrics"][m]) for m in M.HARD + M.SOFT) + " |")
+        L.append("")
+    worst = sorted(((v["hit"] / v["total"], k, v) for k, v in rep["terms"].items() if v["hit"] < v["total"]))[:15]
+    if worst:
+        L += ["## Glossary terms with misses (proposed VI terms)", "", "| term | hit | total |", "|---|---|---|"]
+        L += [f"| {k} | {v['hit']} | {v['total']} |" for _, k, v in worst] + [""]
+    failing = [r for r in rep["cases"] if not r["hard_pass"]]
+    L += [f"## Cases failing a hard metric ({len(failing)})", ""]
+    for r in failing[:50]:
+        bad = [f"{h}: {json.dumps(r['metrics'][h]['detail'], ensure_ascii=False)}" for h in M.HARD
+               if r["metrics"][h]["passed"] is False]
+        L.append(f"- {r['id']} [{r['priority']}/{r['severity']}] " + "; ".join(bad))
+    if rep["cost"]:
+        k = rep["cost"]
+        L += ["", "## Cost", "", f"Total ${k['total_usd']:.4f}, {k['pages']} pages, "
+              f"${k['cost_per_page_usd']:.4f} per page, tokens in/out {k['tokens_in']}/{k['tokens_out']}, "
+              f"cache hits {k['cache_hits']}."]
+    return "\n".join(L) + "\n"
