@@ -32,3 +32,7 @@ class ServerError(TransientError):
 
 class CallTimeout(TransientError):
     pass
+
+
+class RequestRejected(GatewayError):
+    """Provider rejected the request (validation, access denied, unknown model). Never retried."""
