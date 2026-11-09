@@ -42,6 +42,7 @@ region = ap-southeast-2
 ```
 ```bash
 AWS_PROFILE=manuvi-worker MANUVI_AWS_REGION=ap-southeast-2 \
+MANUVI_QUEUE=sqs MANUVI_STORE=s3 \
 MANUVI_S3_BUCKET=<bucket> MANUVI_QUEUE_URL=<JobQueueUrl output> manuvi worker
 ```
 Ollama must be running locally. The worker only makes outbound connections.

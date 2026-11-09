@@ -136,38 +136,31 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              - Sid: QueueSendReceive
+              - Sid: QueueSendOnly
                 Effect: Allow
                 Action:
                   - sqs:SendMessage
-                  - sqs:ReceiveMessage
-                  - sqs:DeleteMessage
-                  - sqs:ChangeMessageVisibility
                   - sqs:GetQueueAttributes
                   - sqs:GetQueueUrl
                 Resource: !GetAtt JobQueue.Arn
-              - Sid: JobsPrefixList
+              # No s3:prefix condition on purpose: HeadObject/GetObject on a missing key return 403 instead of
+              # 404 unless ListBucket is allowed without a prefix context, and the app relies on the 404.
+              - Sid: BucketListForNotFound
                 Effect: Allow
                 Action: s3:ListBucket
                 Resource: !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}"
-                Condition:
-                  StringLike:
-                    "s3:prefix": ["jobs/*"]
               - Sid: JobsPrefixObjects
                 Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}/jobs/*"
-              - Sid: ReadManuviConfig
+              - Sid: ReadWebConfigOnly
                 Effect: Allow
-                Action:
-                  - ssm:GetParameter
-                  - ssm:GetParameters
-                  - ssm:GetParametersByPath
+                Action: ssm:GetParameter
                 Resource:
-                  - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/manuvi"
-                  - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/manuvi/*"
+                  - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/manuvi/prod/web/users"
+                  - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/manuvi/prod/tunnel/token"
 
   WebInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -204,6 +197,10 @@ Resources:
                   - sqs:GetQueueAttributes
                   - sqs:GetQueueUrl
                 Resource: !GetAtt JobQueue.Arn
+              - Sid: BucketListForNotFound
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub "arn:${AWS::Partition}:s3:::${ArtifactBucketName}"
               - Sid: JobAndTracePrefixes
                 Effect: Allow
                 Action:
@@ -284,7 +281,11 @@ Resources:
             cat > /opt/manuvi/.env <<'ENVEOF'
             MANUVI_AWS_REGION=${AWS::Region}
             MANUVI_S3_BUCKET=${ArtifactBucketName}
+            MANUVI_QUEUE=sqs
             MANUVI_QUEUE_URL=${JobQueue}
+            MANUVI_DLQ_URL=${JobDeadLetterQueue}
+            MANUVI_STORE=s3
+            MANUVI_COOKIE_SECURE=1
             MANUVI_USERS_PARAM=/manuvi/prod/web/users
             MANUVI_DOMAIN=${DomainName}
             ENVEOF

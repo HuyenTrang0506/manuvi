@@ -162,3 +162,33 @@ def test_dockerignore_excludes_private_dirs():
     lines = (ROOT / ".dockerignore").read_text(encoding="utf-8").split()
     for must in ("data/", "workspace/", ".git/"):
         assert must in lines
+
+
+def test_env_file_selects_sqs_and_s3_backends(tpl):
+    """src.jobs.config defaults to dir/local: the hosted env must select sqs/s3 explicitly."""
+    ud = json.dumps(tpl["Resources"]["WebInstance"]["Properties"]["UserData"])
+    for line in ("MANUVI_QUEUE=sqs", "MANUVI_STORE=s3", "MANUVI_COOKIE_SECURE=1", "MANUVI_QUEUE_URL=",
+                 "MANUVI_S3_BUCKET=", "MANUVI_DLQ_URL=", "MANUVI_USERS_PARAM="):
+        assert line in ud, line
+
+
+def test_web_role_is_least_privilege(tpl):
+    sts = tpl["Resources"]["WebInstanceRole"]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
+    actions = {a for st in sts for a in (st["Action"] if isinstance(st["Action"], list) else [st["Action"]])}
+    assert "sqs:ReceiveMessage" not in actions and "sqs:DeleteMessage" not in actions
+    ssm = json.dumps([st["Resource"] for st in sts if "ssm:GetParameter" in st["Action"]])
+    assert "/manuvi/*" not in ssm and "/manuvi/prod/web/users" in ssm
+
+
+def test_roles_can_list_bucket_for_404s(tpl):
+    """HeadObject/GetObject on a missing key return 403 (not 404) without s3:ListBucket on the bucket;
+    a s3:prefix condition would not apply to those calls, so none may be set."""
+    for role in ("WebInstanceRole", "WorkerRole"):
+        sts = tpl["Resources"][role]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
+        (lb,) = [s for s in sts if s["Action"] == "s3:ListBucket"]
+        assert "Condition" not in lb
+
+
+def test_compose_passes_allowed_hosts_and_start_computes_it():
+    assert "MANUVI_ALLOWED_HOSTS" in (ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "MANUVI_ALLOWED_HOSTS" in (ROOT / "deploy" / "start.sh").read_text(encoding="utf-8")

@@ -10,6 +10,8 @@ services:
     env_file: /opt/manuvi/.env
     environment:
       MANUVI_DATA_DIR: /var/lib/manuvi
+      # Computed by start.sh (domain, or public IP/DNS from IMDS); the app rejects other Host headers.
+      MANUVI_ALLOWED_HOSTS: ${MANUVI_ALLOWED_HOSTS:-}
     volumes:
       - app-data:/var/lib/manuvi
     read_only: true
