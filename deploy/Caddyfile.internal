@@ -2,6 +2,16 @@
 # serves the app over HTTP: port 80 only redirects to HTTPS, and HTTPS uses a self-signed
 # certificate from Caddy's internal CA. Browsers will warn once; the traffic is still encrypted.
 # For a trusted certificate use a domain (Caddyfile) or a Cloudflare Tunnel.
+#
+# On-demand TLS would otherwise issue a certificate for ANY name a client sends in the TLS handshake (disk and CPU
+# abuse). Caddy therefore asks the app first: GET /internal/tls-ask?domain=<name> answers 200 only for the names in
+# MANUVI_ALLOWED_HOSTS (the instance's own IP / DNS name or the domain), 404 for everything else.
+{
+	on_demand_tls {
+		ask http://app:8000/internal/tls-ask
+	}
+}
+
 http://:80 {
 	redir https://{host}{uri} permanent
 }
@@ -10,6 +20,8 @@ https://:443 {
 	tls internal {
 		on_demand
 	}
+	@internal path /internal/*
+	respond @internal 404
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"
@@ -23,5 +35,7 @@ https://:443 {
 
 # Cloudflare Tunnel origin (internal only, not published).
 http://:8080 {
+	@internal path /internal/*
+	respond @internal 404
 	reverse_proxy app:8000
 }

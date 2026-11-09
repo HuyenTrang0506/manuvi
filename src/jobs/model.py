@@ -72,7 +72,8 @@ class JobRecord(BaseModel):
     page_map: dict[str, int] = Field(default_factory=dict)
     pdf_name: str = "input.pdf"
     pdf_bytes: int = 0
-    reviewer_can_review: bool = False               # founder allows non-safety review by the reviewer role
+    reviewer_can_review: bool = False               # founder allows the reviewer to read segments and approve non-safety ones
+    reviewer_can_read: bool = False                 # founder also allows the reviewer to download outputs (default: no)
     priority_sections: list[str] = Field(default_factory=list)  # worked first; comes from the job spec, never hard-coded
     submitted: bool = False                         # False = draft (PDF may still be uploading), never queued
 

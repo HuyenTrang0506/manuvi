@@ -16,6 +16,7 @@ import ipaddress
 import json
 import os
 import secrets
+import hmac
 import tempfile
 import threading
 import time
@@ -26,15 +27,16 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 
-from src.common.filelock import file_lock
 from src.intake.jobspec import parse_sections
-from src.jobs import (OUTPUTS, TERMINAL, JobRecord, JobState, JobStatus, LocalStore, Queue, Store, valid_job_id)
+from src.jobs import (OUTPUTS, TERMINAL, JobRecord, JobState, JobStatus, LocalStore, Queue, Store, VersionConflict,
+                      valid_job_id)
 from src.jobs.model import SECTION_RE, utcnow
 
 from .auth import SESSION_COOKIE, Auth, Session
 from .pages import HEADERS, render, render_review_page, static_file
 from .review import build_review_router
-from .store import JobStore
+from .review import STALE_MSG
+from .store import JobStore, StaleError
 
 MAX_UPLOAD_DEFAULT_MB = 200
 PDF_CT = "application/pdf"
@@ -55,42 +57,98 @@ class LoginBody(BaseModel):
 
 
 class AccessBody(BaseModel):
-    allow: bool
+    allow: Optional[bool] = None  # reviewer_can_review: read the segments and approve non-safety ones
+    read: Optional[bool] = None   # reviewer_can_read: also download the output files
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 class PortalAudit:
-    """Append-only, hash-chained record of who did what in the portal (no document text, no passwords)."""
+    """Append-only, hash-chained record of who did what in the portal (no document text, no passwords).
 
-    def __init__(self, path: Path):
-        self.path, self.lock = Path(path), threading.Lock()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+    It lives in the Store (``portal/audit/<seq>.json`` in S3), not on the instance disk, so it survives instance
+    replacement. Every event is its own new object, created with "must not exist" semantics, so nothing is ever
+    rewritten. ``prev_hash`` is the SHA-256 of the previous object's exact bytes: the chain runs across objects and
+    ``verify()`` re-checks it, the sequence numbers and the first link. Bucket versioning (foundation stack) keeps
+    old versions if someone with write access ever overwrites an object.
+    """
+
+    PREFIX = "audit/"
+
+    def __init__(self, store: Store):
+        self.store, self.lock = store, threading.Lock()
+        self._seq, self._head = 0, "0" * 64
+        self._reload()
+
+    def _keys(self) -> list[str]:
+        return [k for k in self.store.global_list(self.PREFIX) if k.endswith(".json")]
+
+    def _reload(self) -> None:
+        keys = self._keys()
+        if keys:
+            self._seq, self._head = int(keys[-1][len(self.PREFIX):-5]), _sha(self.store.global_get(keys[-1]))
+        else:
+            self._seq, self._head = 0, "0" * 64
 
     def log(self, user: str, action: str, ip: str = "", **extra) -> None:
-        with self.lock, file_lock(self.path):
-            prev = "0" * 64
-            if self.path.exists():
-                lines = [l for l in self.path.read_text("utf-8").splitlines() if l.strip()]
-                if lines:
-                    prev = hashlib.sha256(lines[-1].encode()).hexdigest()
-            rec = {"ts": utcnow(), "user": user[:80], "action": action, "ip": ip, **extra, "prev_hash": prev}
-            with self.path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-                f.flush()
-                os.fsync(f.fileno())
+        with self.lock:
+            for _ in range(8):
+                seq = self._seq + 1
+                rec = {"seq": seq, "ts": utcnow(), "user": user[:80], "action": action, "ip": ip, **extra,
+                       "prev_hash": self._head}
+                data = json.dumps(rec, ensure_ascii=False).encode("utf-8")
+                if self.store.global_put_new(f"{self.PREFIX}{seq:012d}.json", data):
+                    self._seq, self._head = seq, _sha(data)
+                    return
+                self._reload()  # another writer took that number: continue after its record
+            raise RuntimeError("portal audit: could not append")
 
     def tail(self, n: int = 200) -> list[dict]:
-        if not self.path.exists():
-            return []
-        return [json.loads(l) for l in self.path.read_text("utf-8").splitlines() if l.strip()][-n:][::-1]
+        return [json.loads(self.store.global_get(k)) for k in self._keys()[-n:]][::-1]
+
+    def verify(self) -> bool:
+        prev, expect = "0" * 64, 1
+        for k in self._keys():
+            data = self.store.global_get(k)
+            rec = json.loads(data)
+            if rec.get("prev_hash") != prev or rec.get("seq") != expect or k != f"{self.PREFIX}{expect:012d}.json":
+                return False
+            prev, expect = _sha(data), expect + 1
+        return True
+
+
+def _rechain(head: bytes, new_lines: list[bytes]) -> bytes:
+    """`head` (the current remote audit) + our new records, re-linked so the hash chain stays valid."""
+    lines = [l.decode("utf-8") for l in head.splitlines() if l.strip()]
+    prev = _sha(lines[-1].encode("utf-8")) if lines else "0" * 64
+    out = list(lines)
+    for raw in new_lines:
+        rec = json.loads(raw)
+        rec["prev_hash"] = prev
+        line = json.dumps(rec, ensure_ascii=False)
+        prev = _sha(line.encode("utf-8"))
+        out.append(line)
+    return ("\n".join(out) + "\n").encode("utf-8")
 
 
 class SyncedJobStore(JobStore):
-    """JobStore over a local review directory kept in sync with the job's files in the Store."""
+    """JobStore over a local review directory kept in sync with the job's files in the Store.
+
+    Concurrency: every mutation pulls the files with their version tags, changes them and writes back with a
+    conditional put (If-Match). If the worker or another web actor wrote in between, the write is refused, the
+    whole mutation is re-run on the fresh files (a few tries), and only then reported as a stale write. The
+    audit log is merged instead: our new records are re-chained on top of the newest remote log.
+    """
 
     FILES = ("segments.json", "terms.json", "audit.jsonl")
+    TRIES = 4
 
     def __init__(self, jobdir: Path, store: Store, job_id: str, ttl: float = 2.0):
         self.remote, self.job_id, self.ttl, self._last, self._depth = store, job_id, ttl, 0.0, 0
+        self._etag: dict[str, Optional[str]] = {}
+        self._base: dict[str, Optional[bytes]] = {}
         self._pull_lock = threading.Lock()  # the page fires several GETs at once; they must not share a tmp file
         self.dir = Path(jobdir)
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -98,6 +156,8 @@ class SyncedJobStore(JobStore):
         super().__init__(jobdir)
 
     def _pull(self, force: bool = False) -> None:
+        if self._depth > 0:
+            return  # inside a mutation: never replace the files it is changing
         if not force and time.monotonic() - self._last < self.ttl:
             return
         with self._pull_lock:
@@ -105,21 +165,46 @@ class SyncedJobStore(JobStore):
                 return  # another thread just pulled
             for n in self.FILES:
                 try:
-                    data = self.remote.get_bytes(self.job_id, n)
+                    data, tag = self.remote.get_versioned(self.job_id, n)
                 except FileNotFoundError:
+                    self._etag[n], self._base[n] = None, None
                     continue
                 p = self.dir / n
                 fd, tmp = tempfile.mkstemp(dir=self.dir, prefix=".pull-")
                 with os.fdopen(fd, "wb") as f:
                     f.write(data)
                 os.replace(tmp, p)
+                self._etag[n], self._base[n] = tag, data
             self._last = time.monotonic()
 
     def _push(self) -> None:
-        for n in self.FILES:
+        """Write back what changed. Raises VersionConflict when the remote file moved since the pull."""
+        for n in ("segments.json", "terms.json"):
             p = self.dir / n
-            if p.exists():
-                self.remote.put_bytes(self.job_id, n, p.read_bytes())
+            if p.exists() and p.read_bytes() != self._base.get(n):
+                self.remote.put_if_match(self.job_id, n, p.read_bytes(), self._etag.get(n))
+        self._push_audit()
+        self._last = 0.0  # tags are stale now: the next read pulls again
+
+    def _push_audit(self) -> None:
+        p = self.dir / "audit.jsonl"
+        if not p.exists() or p.read_bytes() == self._base.get("audit.jsonl"):
+            return
+        data, tag = p.read_bytes(), self._etag.get("audit.jsonl")
+        base = self._base.get("audit.jsonl") or b""
+        mine = [l for l in data.splitlines() if l.strip()][len([l for l in base.splitlines() if l.strip()]):]
+        for _ in range(self.TRIES):
+            try:
+                self.remote.put_if_match(self.job_id, "audit.jsonl", data, tag)
+                p.write_bytes(data)
+                return
+            except VersionConflict:
+                try:
+                    head, tag = self.remote.get_versioned(self.job_id, "audit.jsonl")
+                except FileNotFoundError:
+                    head, tag = b"", None
+                data = _rechain(head, mine)
+        raise VersionConflict("audit.jsonl")
 
     def _load_segments(self):
         self._pull()
@@ -134,15 +219,21 @@ class SyncedJobStore(JobStore):
 
         def wrapper(self, *a, **k):
             with self.lock:
-                if self._depth == 0:
-                    self._pull(force=True)
-                self._depth += 1
-                try:
+                if self._depth:  # nested call (bulk_approve -> decide): the outer call pulls and pushes
                     return base(self, *a, **k)
-                finally:
-                    self._depth -= 1
-                    if self._depth == 0:
+                for _ in range(self.TRIES):
+                    self._pull(force=True)
+                    self._depth += 1
+                    try:
+                        result = base(self, *a, **k)
+                    finally:
+                        self._depth -= 1
+                    try:
                         self._push()
+                    except VersionConflict:
+                        continue  # someone wrote first: redo this change on the fresh files
+                    return result
+                raise StaleError(STALE_MSG)
         wrapper.__name__ = name
         return wrapper
 
@@ -171,10 +262,11 @@ def _networks(spec: str):
 
 def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str | Path,
                       allowed_hosts: set[str], secure_cookies: Optional[bool] = None,
-                      trusted_proxies: str = "127.0.0.1/32,::1/128", max_upload_mb: int = MAX_UPLOAD_DEFAULT_MB
-                      ) -> FastAPI:
+                      trusted_proxies: str = "127.0.0.1/32,::1/128", max_upload_mb: int = MAX_UPLOAD_DEFAULT_MB,
+                      trust_cf: bool = False) -> FastAPI:
     data_dir = Path(data_dir)
-    audit = PortalAudit(data_dir / "portal-audit.jsonl")
+    audit = PortalAudit(store)  # in the Store (S3), so it outlives this instance
+    audit_key = hashlib.sha256(b"manuvi-audit|" + "|".join(sorted(u.hash for u in auth.users.values())).encode()).digest()
     proxies = _networks(trusted_proxies)
     hosts = {h.lower() for h in allowed_hosts}
     origins = {f"{sch}://{h}" for h in hosts for sch in ("http", "https")}
@@ -193,8 +285,15 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         return any(ip in n for n in proxies)
 
     def client_ip(request: Request) -> str:
+        """Address used for rate limiting and the audit log. Headers count only when the direct peer is a trusted
+        proxy; CF-Connecting-IP additionally needs MANUVI_TRUST_CF=1 (the peer is then the tunnel's network)."""
         peer = request.client.host if request.client else "?"
         if from_proxy(request):
+            if trust_cf:
+                try:
+                    return str(ipaddress.ip_address(request.headers.get("cf-connecting-ip", "").strip()))
+                except ValueError:
+                    pass  # absent or malformed: fall through to the proxy's own view
             xff = request.headers.get("x-forwarded-for", "")
             if xff:
                 return xff.split(",")[-1].strip()[:45]  # the address the proxy itself saw
@@ -230,6 +329,10 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
             raise HTTPException(404, "job not found")
         return rec, store.get_status(job_id)
 
+    def user_tag(raw: str) -> str:
+        """Failed-login audit entries never hold the raw user field (it may be a mistyped password)."""
+        return "~" + hmac.new(audit_key, raw.strip().lower().encode("utf-8"), hashlib.sha256).hexdigest()[:12]
+
     def view(rec: JobRecord, st: JobStatus) -> dict:
         eff = JobState.cancelled if store.is_cancelled(rec.id) and st.state not in TERMINAL else st.state
         return {"id": rec.id, "name": rec.name, "owner": rec.owner, "created_at": rec.created_at,
@@ -239,7 +342,7 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
                 "updated_at": st.updated_at, "page_states": st.page_states, "section_progress": st.sections,
                 "priority_sections": rec.priority_sections,
                 "outputs": {k: (v in st.outputs) for k, v in OUTPUTS.items()},
-                "reviewer_can_review": rec.reviewer_can_review}
+                "reviewer_can_review": rec.reviewer_can_review, "reviewer_can_read": rec.reviewer_can_read}
 
     # ---- security middleware
     @app.middleware("http")
@@ -249,7 +352,7 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         def deny(msg, code=403):
             return JSONResponse({"detail": msg}, status_code=code, headers=HEADERS)
 
-        if path == "/healthz":
+        if path in ("/healthz", "/internal/tls-ask"):  # probes from the container network, no Host / session
             return await call_next(request)
         if request.headers.get("host", "").lower() not in hosts:
             return deny("bad Host header")
@@ -291,12 +394,24 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
     def static(name: str):
         return static_file(name)
 
+    @app.get("/internal/tls-ask")
+    def tls_ask(request: Request, domain: str = ""):
+        """Caddy's on-demand TLS `ask`: issue a certificate only for a name this app serves (MANUVI_ALLOWED_HOSTS).
+        Requests that came through the public proxy carry X-Forwarded-*; they get 404, as does the Caddyfile route."""
+        if request.headers.get("x-forwarded-for") or request.headers.get("x-forwarded-host"):
+            raise HTTPException(404, "not found")
+        d = domain.strip().lower().rstrip(".")
+        if d and d in {h.rsplit(":", 1)[0] if h.count(":") == 1 else h for h in hosts}:
+            return {"ok": True}
+        raise HTTPException(404, "not found")
+
     @app.post("/api/login")
     def login(request: Request, body: LoginBody):
         ip = client_ip(request)
         sid, wait = auth.login(ip, body.user, body.password)
         if sid is None:
-            audit.log(body.user, "login_locked" if wait else "login_failed", ip)
+            audit.log(user_tag(body.user), "login_locked" if wait else "login_failed", ip,
+                      user_len=len(body.user), known=body.user in auth.users)
             if wait:
                 return JSONResponse({"detail": "Too many attempts. Try again later.", "retry_after": wait},
                                     status_code=429, headers={"Retry-After": str(wait)})
@@ -446,14 +561,24 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
     def reviewer_access(request: Request, job_id: str, body: AccessBody):
         s = founder(request)
         rec, _ = job_or_404(job_id)
-        store.put_job(rec.model_copy(update={"reviewer_can_review": body.allow}))
-        audit.log(s.user, "reviewer_access", client_ip(request), job=job_id, allow=body.allow)
-        return {"reviewer_can_review": body.allow}
+        upd = {k: v for k, v in (("reviewer_can_review", body.allow), ("reviewer_can_read", body.read)) if v is not None}
+        if body.allow is False and body.read is None:
+            upd["reviewer_can_read"] = False  # taking review away also takes the downloads away
+        new = rec.model_copy(update=upd)
+        store.put_job(new)
+        audit.log(s.user, "reviewer_access", client_ip(request), job=job_id, allow=new.reviewer_can_review,
+                  read=new.reviewer_can_read)
+        return {"reviewer_can_review": new.reviewer_can_review, "reviewer_can_read": new.reviewer_can_read}
 
     @app.get("/api/events")
     def events(request: Request, limit: int = 200):
         founder(request)
         return audit.tail(min(max(limit, 1), 1000))
+
+    @app.get("/api/events/verify")
+    def events_verify(request: Request):
+        founder(request)
+        return {"chain_ok": audit.verify()}
 
     # ---- downloads (cookie auth; plain navigation, no custom header possible)
     @app.get("/download/{job_id}/{kind}")
@@ -462,6 +587,8 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         if s is None:
             raise HTTPException(401, "sign in required")
         rec, st = job_or_404(job_id)
+        if s.role != "founder" and not rec.reviewer_can_read:
+            raise HTTPException(403, "the founder has not allowed downloads for the reviewer role")
         if kind not in OUTPUTS or OUTPUTS[kind] not in st.outputs:
             raise HTTPException(404, "not available yet")
         audit.log(s.user, "download", client_ip(request), job=job_id, kind=kind)
@@ -476,7 +603,10 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
     # ---- review of one job
     def review_store(request: Request) -> JobStore:
         job_id = request.path_params["job_id"]
-        job_or_404(job_id)
+        rec, _ = job_or_404(job_id)
+        s = need(request)
+        if s.role != "founder" and not rec.reviewer_can_review:  # reading segments needs the same grant as reviewing
+            raise HTTPException(403, "the founder has not enabled review for the reviewer role")
         with review_lock:
             rs = review_stores.get(job_id)
             if rs is None:
@@ -508,7 +638,9 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         if s is None:
             return RedirectResponse("/", status_code=303)
         rec, _ = job_or_404(job_id)
+        if s.role != "founder" and not rec.reviewer_can_review:
+            raise HTTPException(403, "the founder has not enabled review for the reviewer role")
         return render_review_page(s.csrf, prefix=f"/api/jobs/{job_id}", role=s.role, user=s.user, job_id=job_id,
-                                  can_review=s.role == "founder" or rec.reviewer_can_review)
+                                  can_review=True)
 
     return app

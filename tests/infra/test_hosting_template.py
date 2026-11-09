@@ -114,7 +114,8 @@ def test_instance_role_s3_limited_to_jobs_prefix(tpl):
     sts = tpl["Resources"]["WebInstanceRole"]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
     for st in sts:
         if "s3:GetObject" in st["Action"]:
-            assert "/jobs/*" in json.dumps(st["Resource"])
+            # jobs/ for the job files, portal/audit/ for the portal audit log; nothing else in the bucket
+            assert any(p in json.dumps(st["Resource"]) for p in ("/jobs/*", "/portal/audit/*"))
 
 
 def test_imds_v2_and_encrypted_volume(tpl):
@@ -192,3 +193,55 @@ def test_roles_can_list_bucket_for_404s(tpl):
 def test_compose_passes_allowed_hosts_and_start_computes_it():
     assert "MANUVI_ALLOWED_HOSTS" in (ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
     assert "MANUVI_ALLOWED_HOSTS" in (ROOT / "deploy" / "start.sh").read_text(encoding="utf-8")
+
+
+def test_audit_prefix_is_writable_by_the_web_role_only_and_never_deletable(tpl):
+    web = tpl["Resources"]["WebInstanceRole"]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
+    (st,) = [s for s in web if s.get("Sid") == "PortalAuditObjects"]
+    assert set(st["Action"]) == {"s3:GetObject", "s3:PutObject"}
+    assert "/portal/audit/*" in json.dumps(st["Resource"])
+    for role in ("WebInstanceRole", "WorkerRole"):
+        text = json.dumps(tpl["Resources"][role]["Properties"]["Policies"])
+        assert "s3:DeleteObject" not in text
+    assert "portal/" not in json.dumps(tpl["Resources"]["WorkerRole"]["Properties"]["Policies"])
+
+
+def test_termination_protection_is_a_parameter_defaulting_to_true(tpl):
+    p = tpl["Parameters"]["DisableApiTermination"]
+    assert p["Default"] == "true" and p["AllowedValues"] == ["true", "false"]
+    assert tpl["Resources"]["WebInstance"]["Properties"]["DisableApiTermination"] == {"Ref": "DisableApiTermination"}
+
+
+def test_source_tarball_is_verified_before_it_is_unpacked(tpl):
+    p = tpl["Parameters"]["SourceSha256"]
+    assert "Default" not in p                                       # no default: the deployer must supply it
+    import re
+    rx = re.compile(p["AllowedPattern"])
+    assert rx.match("a" * 64) and not rx.match("a" * 63) and not rx.match("A" * 64) and not rx.match("g" * 64)
+    ud = json.dumps(tpl["Resources"]["WebInstance"]["Properties"]["UserData"])
+    assert ud.index("sha256sum -c") < ud.index("tar -xzf") and "SourceSha256" in ud
+    assert "| tar" not in ud                                        # no more curl | tar (unverified stream)
+    assert "set -euo pipefail" in ud
+    sh = (ROOT / "scripts" / "aws_deploy_hosting.sh").read_text(encoding="utf-8")
+    assert "SOURCE_SHA256:?" in sh and "SourceSha256=" in sh
+
+
+def test_on_demand_tls_asks_the_app_first_and_the_ask_route_is_not_public():
+    internal = (ROOT / "deploy" / "Caddyfile.internal").read_text(encoding="utf-8")
+    assert "ask http://app:8000/internal/tls-ask" in internal and "on_demand" in internal
+    for name in ("Caddyfile", "Caddyfile.internal"):
+        text = (ROOT / "deploy" / name).read_text(encoding="utf-8")
+        assert text.count("respond @internal 404") == text.count("reverse_proxy app:8000")   # every site hides it
+
+
+def test_uvicorn_trusts_forwarded_headers_only_from_the_caddy_container():
+    docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "forwarded-allow-ips '*'" not in docker and "forwarded-allow-ips='*'" not in docker
+    assert "MANUVI_FORWARDED_ALLOW_IPS" in docker
+    compose = yaml.safe_load((ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8"))
+    caddy_ip = compose["services"]["caddy"]["networks"]["default"]["ipv4_address"]
+    assert compose["services"]["app"]["environment"]["MANUVI_FORWARDED_ALLOW_IPS"] == caddy_ip
+    net = compose["networks"]["default"]["ipam"]["config"][0]["subnet"]
+    import ipaddress
+    assert ipaddress.ip_address(caddy_ip) in ipaddress.ip_network(net)
+    assert compose["services"]["app"]["environment"]["MANUVI_TRUSTED_PROXIES"] == net

@@ -87,3 +87,32 @@ def test_config(tmp_path):
     with mock_aws():
         boto3.setup_default_session(region_name="ap-southeast-2")
         assert isinstance(make_queue({"MANUVI_QUEUE": "sqs", "MANUVI_QUEUE_URL": "http://x/q"}), SqsQueue)
+
+
+def test_conditional_write_detects_a_stale_writer(store):
+    """Two actors read the same version; the second write must fail instead of silently overwriting the first."""
+    from src.jobs import VersionConflict
+    store.put_bytes(REC.id, "segments.json", b"[1]")
+    a_data, a_tag = store.get_versioned(REC.id, "segments.json")
+    b_data, b_tag = store.get_versioned(REC.id, "segments.json")
+    assert a_data == b_data == b"[1]" and a_tag == b_tag
+    store.put_if_match(REC.id, "segments.json", b"[2]", a_tag)             # actor A wins
+    with pytest.raises(VersionConflict):
+        store.put_if_match(REC.id, "segments.json", b"[3]", b_tag)         # actor B is stale
+    assert store.get_bytes(REC.id, "segments.json") == b"[2]"
+    _, fresh = store.get_versioned(REC.id, "segments.json")
+    store.put_if_match(REC.id, "segments.json", b"[4]", fresh)             # a re-read makes B current again
+
+
+def test_create_only_write_and_global_objects(store):
+    from src.jobs import VersionConflict
+    store.put_if_match(REC.id, "terms.json", b"[]", None)                  # absent -> created
+    with pytest.raises(VersionConflict):
+        store.put_if_match(REC.id, "terms.json", b"[]", None)              # exists -> If-None-Match fails
+    assert store.global_put_new("audit/000001.json", b"a") is True
+    assert store.global_put_new("audit/000001.json", b"b") is False        # never overwritten
+    assert store.global_get("audit/000001.json") == b"a"
+    assert store.global_list("audit/") == ["audit/000001.json"]
+    assert store.list_job_ids() == [REC.id]                                # portal/ objects are not jobs
+    with pytest.raises(ValueError):
+        store.global_get("../jobs/x")

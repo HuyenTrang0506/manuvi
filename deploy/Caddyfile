@@ -10,11 +10,15 @@
 		Referrer-Policy "no-referrer"
 		-Server
 	}
+	@internal path /internal/*
+	respond @internal 404
 	reverse_proxy app:8000
 }
 
 # Option B target: Cloudflare Tunnel origin. Internal only (not published on the host);
 # the tunnel itself provides HTTPS to the browser.
 http://:8080 {
+	@internal path /internal/*
+	respond @internal 404
 	reverse_proxy app:8000
 }

@@ -4,7 +4,8 @@
 
 Environment: MANUVI_WEB_USERS (JSON users), MANUVI_ALLOWED_HOSTS (comma separated host[:port], e.g. the public
 DNS name; localhost:8000 and 127.0.0.1:8000 are always accepted), MANUVI_TRUSTED_PROXIES (CIDRs allowed to set
-X-Forwarded-*; default loopback), MANUVI_COOKIE_SECURE (1/0, default: follow a trusted X-Forwarded-Proto),
+X-Forwarded-*; default loopback), MANUVI_TRUST_CF (1: use CF-Connecting-IP, only when the peer is inside MANUVI_TRUSTED_PROXIES, i.e. the Cloudflare
+Tunnel network), MANUVI_COOKIE_SECURE (1/0, default: follow a trusted X-Forwarded-Proto),
 MANUVI_MAX_UPLOAD_MB, plus MANUVI_QUEUE*/MANUVI_STORE*/MANUVI_DATA_DIR (see src.jobs.config).
 """
 from __future__ import annotations
@@ -35,6 +36,7 @@ def create_app(env: Optional[Mapping[str, str]] = None, **overrides) -> FastAPI:
         secure_cookies=None if secure is None else secure == "1",
         trusted_proxies=env.get("MANUVI_TRUSTED_PROXIES", "127.0.0.1/32,::1/128"),
         max_upload_mb=int(env.get("MANUVI_MAX_UPLOAD_MB", MAX_UPLOAD_DEFAULT_MB)),
+        trust_cf=env.get("MANUVI_TRUST_CF") == "1",
     )
     kw.update(overrides)
     kw["data_dir"].mkdir(parents=True, exist_ok=True)

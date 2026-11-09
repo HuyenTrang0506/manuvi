@@ -6,6 +6,7 @@ audit.jsonl, state/*.sqlite (resume checkpoints), out/*.pdf|xlsx (downloads).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -13,8 +14,11 @@ import tempfile
 from pathlib import Path
 from typing import Any, Optional, Protocol
 
+from src.common.filelock import file_lock
+
 from .model import JobRecord, JobStatus, valid_job_id
 
+GLOBAL_PREFIX = "portal"  # non-job objects (portal audit log): <root>/portal/ or s3://<bucket>/portal/
 NAME_RE = re.compile(r"^[A-Za-z0-9_-][A-Za-z0-9._-]{0,80}(/[A-Za-z0-9_-][A-Za-z0-9._-]{0,80}){0,2}$")
 
 
@@ -24,7 +28,20 @@ def valid_name(name: str) -> str:
     return name
 
 
+class VersionConflict(Exception):
+    """A conditional write lost the race: the object changed (or appeared) since it was read."""
+
+
+def content_etag(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
 class Store(Protocol):
+    def get_versioned(self, job_id: str, name: str) -> tuple[bytes, str]: ...
+    def put_if_match(self, job_id: str, name: str, data: bytes, etag: Optional[str]) -> None: ...
+    def global_put_new(self, name: str, data: bytes) -> bool: ...
+    def global_get(self, name: str) -> bytes: ...
+    def global_list(self, prefix: str = "") -> list[str]: ...
     def put_bytes(self, job_id: str, name: str, data: bytes) -> None: ...
     def put_file(self, job_id: str, name: str, path: Path) -> None: ...
     def get_bytes(self, job_id: str, name: str) -> bytes: ...
@@ -93,6 +110,54 @@ class LocalStore(_JsonMixin):
     def put_file(self, job_id, name, path):
         self.put_bytes(job_id, name, Path(path).read_bytes())
 
+    def get_versioned(self, job_id, name):
+        data = self.get_bytes(job_id, name)
+        return data, content_etag(data)
+
+    def put_if_match(self, job_id, name, data, etag):
+        """Compare-and-swap under a cross-process file lock. ``etag=None`` means "must not exist yet"."""
+        p = self._path(job_id, name)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with file_lock(p):
+            current = content_etag(p.read_bytes()) if p.is_file() else None
+            if current != etag:
+                raise VersionConflict(name)
+            self.put_bytes(job_id, name, data)
+
+    def _global(self, name: str) -> Path:
+        p = (self.root / GLOBAL_PREFIX / valid_name(name)).resolve()
+        if not p.is_relative_to(self.root / GLOBAL_PREFIX):
+            raise ValueError("path escapes the portal directory")
+        return p
+
+    def global_put_new(self, name, data):
+        """Create ``portal/<name>`` only if it does not exist (never overwrites). False when it exists."""
+        p = self._global(name)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmpname = tempfile.mkstemp(dir=p.parent, prefix=".tmp-")
+        tmp = Path(tmpname)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        try:
+            os.link(tmp, p)  # atomic create-if-absent
+            return True
+        except FileExistsError:
+            return False
+        finally:
+            tmp.unlink(missing_ok=True)
+
+    def global_get(self, name):
+        return self._global(name).read_bytes()
+
+    def global_list(self, prefix=""):
+        base = self.root / GLOBAL_PREFIX
+        if not base.is_dir():
+            return []
+        return sorted(str(p.relative_to(base)) for p in base.rglob("*")
+                      if p.is_file() and not p.name.startswith(".tmp-") and str(p.relative_to(base)).startswith(prefix))
+
     def get_bytes(self, job_id, name):
         return self._path(job_id, name).read_bytes()
 
@@ -146,6 +211,53 @@ class S3Store(_JsonMixin):
 
     def put_bytes(self, job_id, name, data):
         self.client.put_object(Bucket=self.bucket, Key=self._key(job_id, name), Body=data, **self._sse())
+
+    def get_versioned(self, job_id, name):
+        try:
+            r = self.client.get_object(Bucket=self.bucket, Key=self._key(job_id, name))
+        except self.client.exceptions.NoSuchKey:
+            raise FileNotFoundError(name)
+        return r["Body"].read(), r["ETag"]
+
+    def put_if_match(self, job_id, name, data, etag):
+        """S3 conditional write: ``If-Match: <etag>``, or ``If-None-Match: *`` when ``etag`` is None."""
+        cond = {"IfMatch": etag} if etag else {"IfNoneMatch": "*"}
+        self._conditional_put(self._key(job_id, name), data, cond)
+
+    def _conditional_put(self, key: str, data: bytes, cond: dict) -> None:
+        try:
+            self.client.put_object(Bucket=self.bucket, Key=key, Body=data, **cond, **self._sse())
+        except Exception as e:  # botocore ClientError
+            if getattr(e, "response", {}).get("Error", {}).get("Code") in (
+                    "PreconditionFailed", "ConditionalRequestConflict", "412", "409"):
+                raise VersionConflict(key)
+            raise
+
+    def global_put_new(self, name, data):
+        try:
+            self._conditional_put(f"{GLOBAL_PREFIX}/{valid_name(name)}", data, {"IfNoneMatch": "*"})
+            return True
+        except VersionConflict:
+            return False
+
+    def global_get(self, name):
+        try:
+            return self.client.get_object(Bucket=self.bucket, Key=f"{GLOBAL_PREFIX}/{valid_name(name)}")["Body"].read()
+        except self.client.exceptions.NoSuchKey:
+            raise FileNotFoundError(name)
+
+    def global_list(self, prefix=""):
+        base = f"{GLOBAL_PREFIX}/"
+        out, token = [], None
+        while True:
+            kw = {"Bucket": self.bucket, "Prefix": base + prefix}
+            if token:
+                kw["ContinuationToken"] = token
+            r = self.client.list_objects_v2(**kw)
+            out += [o["Key"][len(base):] for o in r.get("Contents", [])]
+            token = r.get("NextContinuationToken")
+            if not token:
+                return sorted(out)
 
     def put_file(self, job_id, name, path):
         self.client.upload_file(str(path), self.bucket, self._key(job_id, name), ExtraArgs=self._sse())

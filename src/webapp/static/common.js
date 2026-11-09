@@ -22,7 +22,11 @@ async function api(path, opt = {}) {
   const r = await fetch(path, {method: opt.method || 'GET', headers, body, credentials: 'same-origin'});
   if (r.status === 401) { location.replace('/'); throw new Error('Your session ended. Sign in again.'); }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(typeof j.detail === 'string' ? j.detail : 'Request failed (' + r.status + ')');
+  if (!r.ok) {
+    const err = new Error(typeof j.detail === 'string' ? j.detail : 'Request failed (' + r.status + ')');
+    err.stale = r.status === 409 && r.headers.get('X-Manuvi-Conflict') === 'stale';  // someone else saved first
+    throw err;
+  }
   return j;
 }
 
@@ -40,6 +44,9 @@ const ERROR_COPY = {
   BUDGET: 'The cost cap for this job was reached. Raise the cap to continue.',
   NO_VI_FONT: 'The Vietnamese PDF could not be drawn because the worker has no Vietnamese font. The Excel files are ready.',
   RENDER_FAILED: 'The Vietnamese PDF could not be drawn. The Excel files are ready.',
+  PDF_LIMIT: 'This PDF has more pages than the limit. Split the manual into parts and upload each part as its own job.',
+  PDF_TIMEOUT: 'Reading this PDF took too long and was stopped. Try a smaller part of the manual, or a re-exported PDF.',
+  PDF_UNREADABLE: 'This PDF could not be read safely. Export it again from the source and upload the new file.',
   NO_TEXT_PAGES: 'No text pages were found in the chosen sections. Scanned pages need OCR first.'};
 const errorCopy = (c) => !c ? '' : (ERROR_COPY[c] || 'The worker stopped unexpectedly. Try the upload again or ask for help with the code ' + c + '.');
 const stateTag = (s) => `<span class="st" data-s="${esc(s)}">${esc(STATE_LABEL[s] || s)}</span>`;
