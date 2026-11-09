@@ -108,3 +108,11 @@ def test_unverified_price_warns_once_and_uses_multiplier(caplog):
     assert c1 == pytest.approx((0.00006 + 0.00024) * 1.5)
     assert sum("unverified" in r.message for r in caplog.records) == 1
     assert all(v["verified"] is False and "bedrock/pricing" in v["source"] for v in pr.table.values())
+
+
+def test_price_without_verified_key_is_unverified(tmp_path):
+    from src.llm_gateway import Prices
+    f = tmp_path / "p.yaml"
+    f.write_text("models:\n  m: {input_per_1k: 1.0, output_per_1k: 1.0}\n  v: {input_per_1k: 1.0, output_per_1k: 1.0, verified: true}\n")
+    pr = Prices(f)
+    assert pr.cost("m", 1000, 0) == 1.5 and pr.cost("v", 1000, 0) == 1.0

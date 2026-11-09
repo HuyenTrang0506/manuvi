@@ -119,3 +119,12 @@ def test_client_has_timeouts_and_no_botocore_retries():
     c = make_client("bedrock-runtime", {"MANUVI_AWS_REGION": "us-east-1"})
     cfg = c.meta.config
     assert cfg.read_timeout == 60 and cfg.retries.get("total_max_attempts") == 1  # = no retries
+
+
+def test_param_validation_error_is_rejected_not_transient():
+    from botocore.exceptions import ParamValidationError
+    class C:
+        def converse(self, **kw):
+            raise ParamValidationError(report="bad")
+    with pytest.raises(RequestRejected):
+        BedrockAdapter(enabled=True, client=C()).complete(req(), "amazon.nova-lite-v1:0")

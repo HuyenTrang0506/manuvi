@@ -104,6 +104,10 @@ def run_doctor(env: Optional[Mapping[str, str]] = None,
                     checks.append(Check("s3 bucket", FAIL, f"{bucket}: public access block is incomplete",
                                         "enable all four S3 Block Public Access settings on the bucket"))
             except Exception as e:
+                if _code(e) in ("AccessDenied", "AccessDeniedException", "403"):
+                    checks.append(Check("s3 bucket", WARN, f"{bucket} exists; public access block not readable (AccessDenied)",
+                                        "allow s3:GetBucketPublicAccessBlock to verify it is private"))
+                    return checks
                 checks.append(Check("s3 bucket", FAIL, f"{bucket}: {_code(e)} (public access block unreadable)",
                                     "enable S3 Block Public Access on the bucket and allow s3:GetBucketPublicAccessBlock"))
     return checks

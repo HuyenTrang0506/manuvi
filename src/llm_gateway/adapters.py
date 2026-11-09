@@ -172,8 +172,8 @@ class BedrockAdapter(Adapter):
         if not self.enabled:
             raise NotConfigured("bedrock is disabled: needs allow_paid=true and job/month caps > 0")
         from botocore.exceptions import (BotoCoreError, ClientError, ConnectionError as BotoConnErr,
-                                         NoCredentialsError, NoRegionError, ProfileNotFound,
-                                         ReadTimeoutError)
+                                         NoCredentialsError, NoRegionError, ParamValidationError,
+                                         ProfileNotFound, ReadTimeoutError)
 
         system, messages = _to_converse(req.messages, bool(req.response_format))
         kw = {"modelId": model_id, "messages": messages,
@@ -196,6 +196,8 @@ class BedrockAdapter(Adapter):
                     "ValidationException": " (check model id, region and request size)",
                     "ResourceNotFoundException": " (model id not available in this region)"}.get(code, "")
             raise RequestRejected(f"bedrock rejected the request: {code}{hint}") from None
+        except ParamValidationError as e:
+            raise RequestRejected(f"invalid request parameters: {type(e).__name__}") from None
         except ReadTimeoutError as e:
             raise CallTimeout(type(e).__name__) from None
         except (NoCredentialsError, NoRegionError, ProfileNotFound) as e:

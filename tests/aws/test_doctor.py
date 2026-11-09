@@ -75,3 +75,16 @@ def test_cli_runs_offline(monkeypatch):
     factory("s3").create_bucket(Bucket="doc-bucket")
     r = CliRunner().invoke(app, ["aws", "doctor"])
     assert r.exit_code == 1 and "[FAIL] s3 bucket" in r.output and "9012" in r.output and ACCOUNT not in r.output
+
+
+@mock_aws
+def test_access_denied_on_public_access_block_is_warn(monkeypatch):
+    from botocore.exceptions import ClientError
+    s3 = factory("s3")
+    s3.create_bucket(Bucket="doc-bucket")
+    def denied(**kw):
+        raise ClientError({"Error": {"Code": "AccessDenied", "Message": "x"}}, "GetPublicAccessBlock")
+    monkeypatch.setattr(s3, "get_public_access_block", denied)
+    checks = run_doctor(ENV, lambda svc: s3 if svc == "s3" else factory(svc))
+    bucket = [c for c in checks if c.name == "s3 bucket"][0]
+    assert bucket.status == "warn"

@@ -25,14 +25,14 @@ UNVERIFIED_PRICE_MULTIPLIER = 1.5
 
 class Prices:
     """Price table. An entry with `verified: false` is charged x1.5 by the cost guard (reservation and
-    ledger) and logs a warning on first use. A missing `verified` key counts as verified (test tables)."""
+    ledger) and logs a warning on first use. A missing `verified` key counts as unverified."""
 
     def __init__(self, path: Path = DEFAULT_PRICES):
         self.table = yaml.safe_load(Path(path).read_text()).get("models", {})
         self._warned: set[str] = set()
 
     def is_verified(self, model_id: str) -> bool:
-        return bool(self.table.get(model_id, {}).get("verified", True))
+        return bool(self.table.get(model_id, {}).get("verified", False))
 
     def cost(self, model_id: str, tokens_in: int, tokens_out: int) -> float:
         p = self.table.get(model_id)

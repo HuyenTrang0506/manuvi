@@ -1,11 +1,12 @@
 """Optional S3 sink for trace JSONL and job artifacts. Off unless MANUVI_S3_BUCKET is set.
 
 Only masked trace records leave the machine: an allow-list of ids, counts, hashes and cost figures, with
-short scalar values only. Source text, translations and customer text are never uploaded. Uploads use
+short scalar values only. Source text, translations and customer text are never uploaded. Traces go under traces/<job_id>/trace.jsonl (infra lifecycle expires traces/); there is no generic artifact upload. Uploads use
 server-side encryption. Without a bucket (or boto3/credentials) every call is a no-op.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -20,6 +21,9 @@ SAFE_KEYS = {
     "input_len", "output_len", "attempt", "status",
 }
 _MAX_STR = 64
+_ENUM_FIELDS = {"node", "stage", "status"}
+_ENUM_RE = re.compile(r"^[a-z][a-z0-9_]{0,31}$")  # enum-like tokens only (translate, needs_review, ...)
+_HEX_RE = re.compile(r"^[0-9a-f]{8,64}$")
 _SAFE_STR = re.compile(r"^[A-Za-z0-9_.:/#@+-]*$")  # ids, hashes, model names; no spaces, so no prose
 
 
@@ -28,7 +32,10 @@ def mask_record(rec: Mapping[str, Any]) -> dict[str, Any]:
     for k, v in rec.items():
         if k not in SAFE_KEYS:
             continue
-        if isinstance(v, str):
+        if isinstance(v, str) and k in _ENUM_FIELDS:
+            if not _ENUM_RE.match(v):  # unknown string: replace by a hash, never the value
+                v = hashlib.sha256(v.encode("utf-8")).hexdigest()[:16]
+        elif isinstance(v, str):
             if len(v) > _MAX_STR or not _SAFE_STR.match(v):
                 continue
         elif v is not None and not isinstance(v, (int, float, bool)):
@@ -39,7 +46,7 @@ def mask_record(rec: Mapping[str, Any]) -> dict[str, Any]:
 
 class S3Sink:
     def __init__(self, bucket: Optional[str] = None, client: Any = None,
-                 env: Optional[Mapping[str, str]] = None, prefix: str = "jobs"):
+                 env: Optional[Mapping[str, str]] = None, prefix: str = "traces"):
         self.env = os.environ if env is None else env
         self.bucket = bucket if bucket is not None else (self.env.get("MANUVI_S3_BUCKET") or None)
         self._client, self.prefix = client, prefix.strip("/")
@@ -73,10 +80,3 @@ class S3Sink:
             return False
         body = "".join(json.dumps(mask_record(r), ensure_ascii=False) + "\n" for r in records)
         return self._put(f"{job_id}/trace.jsonl", body.encode("utf-8"), "application/x-ndjson")
-
-    def upload_artifact(self, job_id: str, name: str, data: bytes) -> bool:
-        """Caller decides what is an artifact; pass only files that carry no customer text
-        (e.g. cost reports, status.json). Path separators in `name` are rejected."""
-        if "/" in name or "\\" in name or name.startswith("."):
-            raise ValueError("artifact name must be a plain file name")
-        return self._put(f"{job_id}/artifacts/{name}", data, "application/octet-stream")
