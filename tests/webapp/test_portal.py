@@ -451,3 +451,10 @@ def test_hosted_factory_contract(tmp_path, users):
                   headers={"Origin": "https://manuvi.example.org"}).status_code == 200
     with pytest.raises(AuthConfigError):
         hosted_app({**env, "MANUVI_WEB_USERS": ""})
+
+
+def test_unknown_user_costs_as_much_as_a_known_one():
+    """Timing side channel: the dummy hash must use the same scrypt cost as the real users' hashes."""
+    h = hash_password("correct horse battery", log_n=12)
+    a = Auth({"x": User("x", "founder", h)})
+    assert a._dummy.split("$")[1:4] == h.split("$")[1:4]

@@ -135,7 +135,12 @@ class Auth:
         self.limiter = limiter or RateLimiter(clock=clock)
         self.sessions: dict[str, Session] = {}
         self.lock = threading.Lock()
-        self._dummy = hash_password("not-a-real-password", log_n=MIN_LOG_N)  # equalise timing for unknown users
+        # Unknown user names must cost as much as known ones: reuse the cost parameters of a real hash.
+        params = next((u.hash.split("$")[1:4] for u in users.values()), [str(DEFAULT_LOG_N), "8", "1"])
+        try:
+            self._dummy = hash_password("not-a-real-password", log_n=int(params[0]), r=int(params[1]), p=int(params[2]))
+        except (ValueError, IndexError):
+            self._dummy = hash_password("not-a-real-password")
 
     def login(self, ip: str, name: str, password: str) -> tuple[Optional[str], int]:
         """Returns (session id, 0) on success; (None, retry_after_seconds) otherwise (0 = bad credentials)."""
