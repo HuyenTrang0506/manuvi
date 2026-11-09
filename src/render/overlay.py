@@ -57,8 +57,9 @@ def mask_rects(page: pymupdf.Page, rects: list[pymupdf.Rect]) -> None:
                           graphics=pymupdf.PDF_REDACT_LINE_ART_NONE)
 
 
-def draw_fit(page: pymupdf.Page, rect: pymupdf.Rect, rotate: int, fit: Fit, lh: float = 1.15,
+def draw_fit(page: pymupdf.Page, rect: pymupdf.Rect, rotate: int, fit: Fit, lh: float | None = None,
              color=(0, 0, 0)) -> None:
+    lh = fit.lh if lh is None else lh
     for i, line in enumerate(fit.lines):
         p = line_origin(rect, rotate, fit.size * (ASC + i * lh))
         page.insert_text(p, line, fontsize=fit.size, fontname=FONTNAME, rotate=rotate, color=color)
