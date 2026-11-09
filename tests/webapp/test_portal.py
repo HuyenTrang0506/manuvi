@@ -458,3 +458,22 @@ def test_unknown_user_costs_as_much_as_a_known_one():
     h = hash_password("correct horse battery", log_n=12)
     a = Auth({"x": User("x", "founder", h)})
     assert a._dummy.split("$")[1:4] == h.split("$")[1:4]
+
+
+def test_parallel_pulls_do_not_race_on_a_shared_tmp_file(tmp_path):
+    """The review page fires several GETs at once; once the cache expired they raced on one tmp file (500)."""
+    from concurrent.futures import ThreadPoolExecutor
+    from src.webapp.portal import SyncedJobStore
+    store = LocalStore(tmp_path / "store")
+    store.put_job(JobRecord(id=JID, name="x", owner="huyen", sections="23:1-4", submitted=True))
+    store.put_bytes(JID, "segments.json", b"[]")
+    store.put_bytes(JID, "terms.json", b"[]")
+    s = SyncedJobStore(tmp_path / "rev", store, JID, ttl=0.0)
+
+    def pull(_):
+        for _ in range(30):
+            s._pull()
+        return True
+
+    with ThreadPoolExecutor(8) as ex:
+        assert all(ex.map(pull, range(8)))

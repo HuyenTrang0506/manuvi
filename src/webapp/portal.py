@@ -91,6 +91,7 @@ class SyncedJobStore(JobStore):
 
     def __init__(self, jobdir: Path, store: Store, job_id: str, ttl: float = 2.0):
         self.remote, self.job_id, self.ttl, self._last, self._depth = store, job_id, ttl, 0.0, 0
+        self._pull_lock = threading.Lock()  # the page fires several GETs at once; they must not share a tmp file
         self.dir = Path(jobdir)
         self.dir.mkdir(parents=True, exist_ok=True)
         self._pull(force=True)
@@ -99,16 +100,20 @@ class SyncedJobStore(JobStore):
     def _pull(self, force: bool = False) -> None:
         if not force and time.monotonic() - self._last < self.ttl:
             return
-        for n in self.FILES:
-            try:
-                data = self.remote.get_bytes(self.job_id, n)
-            except FileNotFoundError:
-                continue
-            p = self.dir / n
-            tmp = p.with_suffix(p.suffix + ".tmp")
-            tmp.write_bytes(data)
-            os.replace(tmp, p)
-        self._last = time.monotonic()
+        with self._pull_lock:
+            if not force and time.monotonic() - self._last < self.ttl:
+                return  # another thread just pulled
+            for n in self.FILES:
+                try:
+                    data = self.remote.get_bytes(self.job_id, n)
+                except FileNotFoundError:
+                    continue
+                p = self.dir / n
+                fd, tmp = tempfile.mkstemp(dir=self.dir, prefix=".pull-")
+                with os.fdopen(fd, "wb") as f:
+                    f.write(data)
+                os.replace(tmp, p)
+            self._last = time.monotonic()
 
     def _push(self) -> None:
         for n in self.FILES:
