@@ -130,7 +130,8 @@ class S3Store(_JsonMixin):
             raise ValueError("MANUVI_S3_BUCKET is required for the s3 store")
         if client is None:
             import boto3
-            client = boto3.client("s3", region_name=region)
+            from botocore.config import Config
+            client = boto3.client("s3", region_name=region, config=Config(signature_version="s3v4"))
         self.bucket, self.client, self.prefix = bucket, client, prefix.strip("/")
         self.sse, self.kms_key_id = sse, kms_key_id
 

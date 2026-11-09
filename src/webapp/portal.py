@@ -322,7 +322,7 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         s = request.state.session
         if s is None:
             return render("login.html", {})
-        return render("portal.html", {"token": s.csrf, "user": s.user, "role": s.role})
+        return render("portal.html", {"token": s.csrf, "user": s.user, "role": s.role, "maxMb": max_upload_mb})
 
     # ---- jobs
     @app.get("/api/jobs")

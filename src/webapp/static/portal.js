@@ -8,7 +8,9 @@
 
   const skeleton = (n = 3) => `<div aria-busy="true" aria-label="Loading">${'<span class="sk tall"></span>'.repeat(n)}</div>`;
   const money = (v) => '$' + (+v || 0).toFixed(2);
+  const prioBadge = (j) => (j.priority_sections || []).length ? `<span class="badge prio"><span aria-hidden="true">\u2605</span> Priority: section ${j.priority_sections.map(esc).join(', ')}</span>` : '';
   const ACTIVE = new Set(['queued', 'running']);
+  const hydrate = (root) => root.querySelectorAll('[data-v]').forEach((el) => el.style.setProperty('--v', el.dataset.v)); // CSP forbids inline style attributes
 
   function setTitle(t) { document.title = t ? `${t} - Manuvi` : 'Manuvi'; }
   function focusMain() { main.focus({preventScroll: true}); }
@@ -38,9 +40,9 @@
   function jobRow(j) {
     const done = j.chunks ? j.chunks - j.pending : 0;
     return `<li><a class="job rise" href="#/job/${esc(j.id)}" data-id="${esc(j.id)}">
-      <div><h2>${esc(j.name)}</h2><div class="meta">Sections ${esc(j.sections)} &middot; ${esc(j.created_at.slice(0, 10))} &middot; <span data-f="cost">${money(j.cost_usd)}</span></div></div>
+      <div><h2>${esc(j.name)}</h2>${prioBadge(j)}<div class="meta">Sections ${esc(j.sections)} &middot; ${esc(j.created_at.slice(0, 10))} &middot; <span data-f="cost">${money(j.cost_usd)}</span></div></div>
       <div data-f="state">${stateTag(j.state)}</div>
-      <div class="meter" role="progressbar" aria-label="Progress for ${esc(j.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(j.progress * 100)}" style="--v:${j.progress}"><i></i></div>
+      <div class="meter" role="progressbar" aria-label="Progress for ${esc(j.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(j.progress * 100)}" data-v="${j.progress}"><i></i></div>
     </a></li>`;
   }
   function patchRow(li, j) {
@@ -58,7 +60,7 @@
       main.innerHTML = isFounder ? `<section class="empty">
         <h1>Technical manuals, translated and checked.</h1>
         <p class="lead">Upload a manual and get Vietnamese pages back with every part number, value and safety warning kept exactly as printed.</p>
-        <div class="specimen" aria-label="Example"><p lang="en" style="margin:0 0 8px">${withCodes('Tighten bolt to 12 Nm. See Fig. 3-2.')}</p><p lang="vi" style="margin:0">${withCodes('Siết bu lông đến 12 Nm. Xem Fig. 3-2.')}</p></div>
+        <div class="specimen" aria-label="Example"><p lang="en">${withCodes('Tighten bolt to 12 Nm. See Fig. 3-2.')}</p><p lang="vi">${withCodes('Siết bu lông đến 12 Nm. Xem Fig. 3-2.')}</p></div>
         <a class="btn primary" href="#/new">Upload a manual</a></section>`
         : `<section class="empty"><h1>No manuals yet</h1><p class="lead">Manuals appear here once the founder uploads them. You will be able to read and, when allowed, approve segments.</p></section>`;
       return;
@@ -66,6 +68,7 @@
     const ul = $('.jobs', main);
     if (first || !ul) {
       main.innerHTML = `<h1>Manuals</h1><ul class="jobs">${jobs.map(jobRow).join('')}</ul>`;
+      hydrate(main);
     } else {
       jobs.forEach((j) => { const li = ul.querySelector(`[data-id="${j.id}"]`); if (li) patchRow(li, j); });
     }
@@ -76,7 +79,7 @@
   function viewNew() {
     setTitle('Upload a manual');
     main.innerHTML = `<h1>Upload a manual</h1>
-    <form id="nf" class="panel" novalidate style="max-width:680px">
+    <form id="nf" class="panel narrow" novalidate>
       <div class="field"><label for="nm">Manual name</label><input id="nm" type="text" maxlength="120" autocomplete="off" required>
         <p class="hint">Shown in your list, for example "Excavator service manual, section 23".</p></div>
       <div class="field"><span class="lbl" id="pl">PDF file</span>
@@ -84,10 +87,12 @@
           <strong id="dn">Drop the PDF here or choose a file</strong><span class="hint" id="ph">PDF only, up to ${CFG.maxMb} MB. Stored privately; it is only ever read as a PDF.</span></label></div>
       <div class="field"><label for="sc">Sections to translate</label><input id="sc" type="text" placeholder="23:1-42,43:1-22" autocomplete="off" spellcheck="false" aria-describedby="sh" required>
         <p class="hint" id="sh">One or more SECTION:FIRST-LAST, separated by commas. The numbers are the printed page numbers.</p></div>
-      <div class="field"><label for="pm">Page map (optional)</label><textarea id="pm" rows="3" spellcheck="false" aria-describedby="mh" style="min-height:5em;font-family:var(--font-ui)"></textarea>
+      <div class="field"><label for="pm">Page map (optional)</label><textarea id="pm" rows="3" spellcheck="false" aria-describedby="mh"></textarea>
         <p class="hint" id="mh">Only needed when printed page labels cannot be read. One line per section: SECTION=PDF page of its first page, for example 23=187.</p></div>
+      <div class="field"><label for="pr">Priority sections (optional)</label><input id="pr" type="text" placeholder="43" autocomplete="off" spellcheck="false" aria-describedby="prh">
+        <p class="hint" id="prh">Section names to translate first, separated by commas. They are worked on, and reported, before the rest.</p></div>
       <p id="ferr" class="err-text" role="alert"></p>
-      <div class="meter" id="up" hidden role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" style="--v:0;margin-bottom:12px"><i></i></div>
+      <div class="meter gap" id="up" hidden role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" data-v="0"><i></i></div>
       <div class="actions"><button class="primary" id="go" type="submit">Start translation</button><a class="btn" href="#/jobs">Cancel</a></div>
     </form>`;
     const f = $('#nf'), drop = $('#drop'), pf = $('#pf');
@@ -117,7 +122,8 @@
       }
       const go = $('#go'); go.disabled = true; go.textContent = 'Uploading...';
       try {
-        const {id} = await api('/api/jobs', {method: 'POST', body: {name, sections, page_map}});
+        const priority_sections = $('#pr').value.split(',').map((x) => x.trim()).filter(Boolean);
+        const {id} = await api('/api/jobs', {method: 'POST', body: {name, sections, page_map, priority_sections}});
         await new Promise((resolve, reject) => {
           const x = new XMLHttpRequest(); x.open('PUT', `/api/jobs/${id}/pdf`);
           x.setRequestHeader('Content-Type', 'application/pdf'); x.setRequestHeader('X-Manuvi-Token', CFG.token);
@@ -145,32 +151,42 @@
     const canReview = j.chunks > 0 && j.state !== 'queued';
     return `<p><a href="#/jobs">&larr; All manuals</a></p>
     <h1>${esc(j.name)}</h1>
+    ${prioBadge(j)}
     <p class="meta"><span id="jst">${stateTag(j.state)}</span> &middot; Sections ${esc(j.sections)} &middot; Started by ${esc(j.owner)} on ${esc(j.created_at.slice(0, 10))}</p>
     ${j.error_code ? `<p class="err-text" role="alert">${esc(errorCopy(j.error_code))}</p>` : ''}
     <section class="panel" aria-labelledby="ph1"><h2 id="ph1">Progress</h2>
-      <div class="meter" role="progressbar" aria-label="Translation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(j.progress * 100)}" style="--v:${j.progress};margin-bottom:12px"><i></i></div>
+      <div class="meter gap" role="progressbar" aria-label="Translation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(j.progress * 100)}" data-v="${j.progress}"><i></i></div>
       <p>${j.chunks ? `${translated} of ${j.chunks} text blocks translated` : 'Waiting for the worker to read the PDF'}${pageVals.length ? `, ${pagesDone} of ${pageVals.length} pages complete` : ''}. Cost so far ${money(j.cost_usd)}.</p>
       ${pageStrip(j.page_states)}
     </section>
-    <section style="margin-top:24px" aria-labelledby="ah"><h2 id="ah">Actions</h2><div class="actions">
+    ${sectionTable(j)}
+    <section class="section" aria-labelledby="ah"><h2 id="ah">Actions</h2><div class="actions">
       ${canReview ? `<a class="btn primary" href="/review/${esc(j.id)}">${isFounder ? 'Review segments' : 'Read segments'}</a>` : ''}
       ${isFounder && j.state === 'needs_review' ? '<button id="resume" type="button">Continue after my approvals</button>' : ''}
       ${isFounder && j.state === 'done' ? '<button id="resume" type="button">Rebuild files from my approvals</button>' : ''}
       ${isFounder && !['done', 'failed', 'cancelled'].includes(j.state) ? '<button id="cancel" class="danger" type="button">Cancel job</button>' : ''}
     </div><p id="cbox" class="msg" role="status"></p>
-    ${j.state === 'needs_review' ? '<p>Safety warnings wait for a person. Approve each one in the review queue, then continue.</p>' : ''}
-    ${isFounder ? `<div class="field"><label class="cb" style="font-weight:400;gap:8px;justify-content:flex-start"><input id="ra" type="checkbox" ${j.reviewer_can_review ? 'checked' : ''}> Let the reviewer approve non-safety segments</label><p class="hint">Safety segments always need the founder.</p></div>` : ''}
+    ${j.state === 'needs_review' ? '<p class="note">Safety warnings wait for a person. Approve each one in the review queue, then continue.</p>' : ''}
+    ${isFounder ? `<div class="field"><label class="cb check"><input id="ra" type="checkbox" ${j.reviewer_can_review ? 'checked' : ''}> Let the reviewer approve non-safety segments</label><p class="hint">Safety segments always need the founder.</p></div>` : ''}
     </section>
-    <section style="margin-top:24px" aria-labelledby="dh"><h2 id="dh">Downloads</h2>
+    <section class="section" aria-labelledby="dh"><h2 id="dh">Downloads</h2>
       <div class="dl">${DL.map(([k, t]) => j.outputs[k] ? `<a class="btn" href="/download/${esc(j.id)}/${k}">${esc(t)}</a>` : `<span class="btn" aria-disabled="true">${esc(t)}</span>`).join('')}</div>
       ${Object.values(j.outputs).some(Boolean) ? '' : '<p class="hint">Files appear here when the translation is ready.</p>'}
     </section>`;
+  }
+  function sectionTable(j) {
+    const e = Object.entries(j.section_progress || {});
+    if (!e.length) return '';
+    const prio = new Set(j.priority_sections || []);
+    return `<section class="section" aria-labelledby="sh1"><h2 id="sh1">Progress by section</h2><div class="scroll"><table class="tbl"><thead><tr><th scope="col">Section</th><th scope="col">Translated</th><th scope="col">Cost</th></tr></thead><tbody>${e.map(([k, v]) =>
+      `<tr><th scope="row">${esc(k)} ${prio.has(k) ? '<span class="badge prio"><span aria-hidden="true">\u2605</span> Priority</span>' : ''}</th><td>${v.chunks - v.pending} of ${v.chunks}</td><td>${money(v.cost_usd)}</td></tr>`).join('')}</tbody></table></div></section>`;
   }
   async function viewJob(id, first = true) {
     if (first) { setTitle('Manual'); main.innerHTML = skeleton(2); }
     const j = await api('/api/jobs/' + encodeURIComponent(id));
     setTitle(j.name);
     main.innerHTML = jobHtml(j);
+    hydrate(main);
     const act = async (path, okMsg, body) => {
       try { await api(`/api/jobs/${id}/${path}`, {method: 'POST', body}); say(okMsg); viewJob(id, false); }
       catch (e) { $('#cbox').textContent = e.message; }
