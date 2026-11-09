@@ -16,18 +16,19 @@ from typing import Callable, Optional
 
 from src.common.filelock import file_lock
 from src.intake.jobspec import IntakeError
-from src.jobs import (TERMINAL, JobRecord, JobState, JobStatus, LostMessage, Message, Queue, Store)
+from src.jobs import (TERMINAL, JobRecord, JobState, JobStatus, LostMessage, Message, Queue, Store, VersionConflict)
 from src.jobs.model import utcnow
 from src.llm_gateway.adapters import Adapter
 from src.pipeline.runner import job_status, make_gateway, run_job
 from src.pipeline.schema import CHECKPOINT_FILE, CACHE_FILE, DB_FILE, LEDGER_FILE, SEGMENTS_FILE
 
 from .outputs import build_outputs
-from .prepare import JOBSPEC_FILE, LAYOUT_FILE, TERMS_FILE, prepare
+from .prepare import JOBSPEC_FILE, LAYOUT_FILE, TERMS_FILE, PdfLimitError, prepare
 
 log = logging.getLogger("manuvi.worker")
 STATE_FILES = (DB_FILE, LEDGER_FILE, CHECKPOINT_FILE, CACHE_FILE)  # resume state, uploaded as state/<name>
 META_FILES = ("chunks.json", LAYOUT_FILE, JOBSPEC_FILE, TERMS_FILE)
+MERGE_TRIES = 6
 
 
 class StopRequested(Exception):
@@ -165,20 +166,32 @@ class Worker:
             self.store.get_file(job_id, TERMS_FILE, work / TERMS_FILE)
 
     def _merge_segments(self, job_id: str, work: Path, upload: bool = True) -> list[dict]:
+        """Merge local pipeline output with the store's copy. The upload is a conditional write (If-Match on the
+        version we merged against): if the web app saved a decision in between, we merge again with that newer
+        copy instead of overwriting it."""
         path = work / SEGMENTS_FILE
         with file_lock(path):
             local = json.loads(path.read_text("utf-8")) if path.exists() else []
-            remote = json.loads(self.store.get_bytes(job_id, SEGMENTS_FILE)) \
-                if self.store.exists(job_id, SEGMENTS_FILE) else []
-            merged = merge_segments(local, remote) if local else remote
-            if merged or path.exists():
+            for _ in range(MERGE_TRIES):
+                try:
+                    raw, etag = self.store.get_versioned(job_id, SEGMENTS_FILE)
+                    remote = json.loads(raw)
+                except FileNotFoundError:
+                    remote, etag = [], None
+                merged = merge_segments(local, remote) if local else remote
                 data = json.dumps(merged, ensure_ascii=False, indent=1)
-                tmp = path.with_suffix(".json.tmp")
-                tmp.write_text(data, "utf-8")
-                os.replace(tmp, path)
-                if upload and merged != remote:
-                    self.store.put_bytes(job_id, SEGMENTS_FILE, data.encode("utf-8"))
-        return merged
+                if merged or path.exists():
+                    tmp = path.with_suffix(".json.tmp")
+                    tmp.write_text(data, "utf-8")
+                    os.replace(tmp, path)
+                if not (upload and merged != remote and (merged or path.exists())):
+                    return merged
+                try:
+                    self.store.put_if_match(job_id, SEGMENTS_FILE, data.encode("utf-8"), etag)
+                    return merged
+                except VersionConflict:
+                    continue  # a web edit landed after our read: merge against it
+            raise VersionConflict(SEGMENTS_FILE)
 
     def _push_state(self, job_id: str, work: Path) -> None:
         for n in STATE_FILES:
@@ -247,6 +260,9 @@ class Worker:
             outcome = self._run(msg, job_id, rec, work)
         except IntakeError:
             self._fail(msg, job_id, "INTAKE", ack=True)
+            outcome = "failed"
+        except PdfLimitError as e:  # retrying the same PDF cannot help: fail once, with a code the page explains
+            self._fail(msg, job_id, e.code, ack=True)
             outcome = "failed"
         except LostMessage:
             outcome = "lost"
