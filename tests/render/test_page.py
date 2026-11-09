@@ -140,9 +140,9 @@ def test_synth_keeps_tokens_and_lengthens():
 
 
 def test_label_legend_overflowing_the_page_does_not_crash(tmp_path):
-    """Regression: a legend that needed more room than the page has raised 'CropBox not in MediaBox',
+    """Regression (fractional box coordinates give a fractional page growth): a legend that needed more room raised 'CropBox not in MediaBox',
     so PDF output failed for any job with a long diagram label (synthetic PDF, no customer data)."""
-    long = seg(0, (68, 223, 76, 253), "label", "s", "x" * 200, rotate=-90)
+    long = seg(0, (67.96719, 223.27319, 75.96719, 253.27319), "label", "s", "x" * 200, rotate=-90)
     _, out, res = render(tmp_path, [long])
     assert res[0].grown > 0 and res[0].legend
     assert pymupdf.open(out)[0].rect.height > 300
