@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 from pathlib import Path
@@ -8,7 +9,8 @@ from typing import Optional
 import httpx
 
 from .cache import cache_key
-from .errors import CallTimeout, NotConfigured, RecordedMiss, ServerError, Throttled, TransientError
+from .errors import (CallTimeout, NotConfigured, RecordedMiss, RequestRejected, ServerError, Throttled,
+                     TransientError)
 from .models import LLMRequest
 
 
@@ -114,16 +116,101 @@ class OllamaAdapter(Adapter):
         }
 
 
+_THROTTLE = {"ThrottlingException", "TooManyRequestsException", "ServiceQuotaExceededException",
+             "ProvisionedThroughputExceededException", "RequestLimitExceeded"}
+_SERVER = {"InternalServerException", "ServiceUnavailableException", "ModelNotReadyException",
+           "ModelErrorException", "InternalFailure", "ServiceUnavailable"}
+
+
+def _to_converse(messages: list[dict], json_mode: bool) -> tuple[list[dict], list[dict]]:
+    """OpenAI-style messages -> (system blocks, Converse messages). Images arrive as data: URLs."""
+    system: list[dict] = []
+    out: list[dict] = []
+    for m in messages:
+        role, content = m.get("role"), m.get("content", "")
+        parts = content if isinstance(content, list) else [{"type": "text", "text": content}]
+        blocks: list[dict] = []
+        for p in parts:
+            if p.get("type") == "image_url":
+                url = p["image_url"]["url"]
+                head, _, b64 = url.partition(",")
+                fmt = head.split(";")[0].split("/")[-1].replace("jpg", "jpeg") or "png"
+                blocks.append({"image": {"format": fmt, "source": {"bytes": base64.b64decode(b64)}}})
+            else:
+                blocks.append({"text": p.get("text", "")})
+        if role == "system":
+            system += [b for b in blocks if "text" in b]
+        else:
+            out.append({"role": "assistant" if role == "assistant" else "user", "content": blocks})
+    if json_mode:
+        system.append({"text": "Respond with valid JSON only."})
+    return system, out
+
+
 class BedrockAdapter(Adapter):
-    """Stub: no AWS calls are wired yet. allow_paid is enforced by the gateway only."""
+    """Bedrock Runtime Converse API. Unusable unless `enabled` (the gateway sets it only when
+    allow_paid is true and the job and month caps are > 0). The boto3 client is created lazily from
+    MANUVI_AWS_PROFILE / MANUVI_AWS_REGION; no keys are read or stored here."""
 
     name = "bedrock"
     paid = True
+    DEFAULT_MAX_TOKENS = 1024  # same figure the gateway uses to reserve budget
 
-    def __init__(self, customer_data: bool = False):
+    def __init__(self, customer_data: bool = False, enabled: bool = False, client=None, env=None):
         # customer data must be opted in explicitly (profiles.yaml customer_data_adapters)
         if customer_data:
             self.data_classes = frozenset({"public", "customer"})
+        self.enabled, self._client, self._env = enabled, client, env
+
+    def _get_client(self):
+        if self._client is None:
+            from .aws import make_client
+            self._client = make_client("bedrock-runtime", self._env, read_timeout=60)
+        return self._client
 
     def complete(self, req, model_id):
-        raise NotConfigured("bedrock adapter is a stub (no boto3 client wired)")
+        if not self.enabled:
+            raise NotConfigured("bedrock is disabled: needs allow_paid=true and job/month caps > 0")
+        from botocore.exceptions import (BotoCoreError, ClientError, ConnectionError as BotoConnErr,
+                                         NoCredentialsError, NoRegionError, ParamValidationError,
+                                         ProfileNotFound, ReadTimeoutError)
+
+        system, messages = _to_converse(req.messages, bool(req.response_format))
+        kw = {"modelId": model_id, "messages": messages,
+              "inferenceConfig": {"maxTokens": req.max_tokens or self.DEFAULT_MAX_TOKENS,
+                                  "temperature": req.temperature}}
+        if system:
+            kw["system"] = system
+        try:
+            r = self._get_client().converse(**kw)
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            status = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+            if code in _THROTTLE or status == 429:
+                raise Throttled(code or "429") from None
+            if code == "ModelTimeoutException" or status == 408:
+                raise CallTimeout(code) from None
+            if code in _SERVER or status >= 500:
+                raise ServerError(code or str(status)) from None
+            hint = {"AccessDeniedException": " (check IAM permissions and model access in the Bedrock console)",
+                    "ValidationException": " (check model id, region and request size)",
+                    "ResourceNotFoundException": " (model id not available in this region)"}.get(code, "")
+            raise RequestRejected(f"bedrock rejected the request: {code}{hint}") from None
+        except ParamValidationError as e:
+            raise RequestRejected(f"invalid request parameters: {type(e).__name__}") from None
+        except ReadTimeoutError as e:
+            raise CallTimeout(type(e).__name__) from None
+        except (NoCredentialsError, NoRegionError, ProfileNotFound) as e:
+            raise NotConfigured(f"AWS credentials not available ({type(e).__name__}); run `manuvi aws doctor`") from None
+        except BotoConnErr as e:
+            raise TransientError(type(e).__name__) from None
+        except BotoCoreError as e:
+            raise TransientError(type(e).__name__) from None
+        blocks = r.get("output", {}).get("message", {}).get("content", [])
+        text = "".join(b.get("text", "") for b in blocks)
+        usage = r.get("usage", {})
+        return {
+            "text": text,
+            "tokens_in": usage.get("inputTokens") or estimate_tokens(req.messages),
+            "tokens_out": usage.get("outputTokens") or estimate_tokens(text),
+        }

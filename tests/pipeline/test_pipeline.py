@@ -158,7 +158,7 @@ def test_resume_after_kill_at_gate_keeps_done_work(tmp_path):
 
 # ---------------------------------------------------------------- budget cap
 def _paid_gateway(tmp_path, job):
-    (tmp_path / "prices.yaml").write_text("models:\n  fake-bulk: {input_per_1k: 1.0, output_per_1k: 1.0}\n  fake-strong: {input_per_1k: 1.0, output_per_1k: 1.0}\n")
+    (tmp_path / "prices.yaml").write_text("models:\n  fake-bulk: {input_per_1k: 1.0, output_per_1k: 1.0, verified: true}\n  fake-strong: {input_per_1k: 1.0, output_per_1k: 1.0, verified: true}\n")
     (tmp_path / "profiles.yaml").write_text(
         "default_profile: p\nprofiles:\n  p:\n    allow_paid: true\n    caps_usd: {job: 100}\n"
         "    models: {bulk: 'fake:fake-bulk', strong: 'fake:fake-strong', vision: 'fake:fake-bulk'}\n")
