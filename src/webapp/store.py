@@ -22,6 +22,10 @@ class ConflictError(Exception):
     pass
 
 
+class StaleError(ConflictError):
+    """The caller acted on an older version of the segment (or the file changed under a concurrent write)."""
+
+
 def _tokens(text: str) -> Counter:
     """Multiset of protected tokens (patterns.yaml via guard.mask)."""
     try:
@@ -171,15 +175,23 @@ class JobStore:
                 return s
         raise KeyError(sid)
 
-    def edit(self, sid: str, target: str, actor: str | None = None) -> dict:
+    @staticmethod
+    def _check_rev(s: dict, rev: int | None) -> None:
+        """Optimistic concurrency: `rev` is the `_rev` the caller last saw; every change bumps it."""
+        if rev is not None and int(rev) != int(s.get("_rev", 0)):
+            raise StaleError("Someone else changed this, reload.")
+
+    def edit(self, sid: str, target: str, actor: str | None = None, rev: int | None = None) -> dict:
         with self.lock, file_lock(self.seg_path):
             segs = self._load_segments()
             s = self._find(segs, sid)
+            self._check_rev(s, rev)
             old = s.get("target")
             if old == target:
                 return s
             old_state = {"decision": s["decision"], "status": s["status"]}
             s["target"] = target
+            s["_rev"] = int(s.get("_rev", 0)) + 1
             s["decision"] = "pending"  # an edit invalidates a previous decision
             errs = [i for i in qa_errors(s["source"], target) if i["severity"] == "error"]
             s["qa_issues"] = errs
@@ -192,10 +204,11 @@ class JobStore:
             return s
 
     def decide(self, sid: str, action: str, nonce: str | None = None, bulk: bool = False,
-               actor: str | None = None) -> dict:
+               actor: str | None = None, rev: int | None = None) -> dict:
         with self.lock, file_lock(self.seg_path):
             segs = self._load_segments()
             s = self._find(segs, sid)
+            self._check_rev(s, rev)
             old = {"decision": s["decision"], "status": s["status"]}
             explicit = False
             if action == "approve":
@@ -219,6 +232,7 @@ class JobStore:
                 s["status"] = "needs_review"
             else:
                 raise ValueError(action)
+            s["_rev"] = int(s.get("_rev", 0)) + 1
             self._audit(action, "segment", sid, old, {"decision": s["decision"], "status": s["status"]},
                         {"bulk": bulk, "explicit": explicit}, actor=actor)
             self._write(self.seg_path, segs)

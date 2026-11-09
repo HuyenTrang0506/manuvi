@@ -11,16 +11,28 @@ from typing import Callable, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from .store import ConflictError, JobStore
+from .store import ConflictError, JobStore, StaleError
+
+
+STALE_MSG = "Someone else changed this, reload."
+
+
+def conflict(e: ConflictError) -> HTTPException:
+    """409 for a rule conflict; a stale write also carries a header the page uses to show the reload notice."""
+    if isinstance(e, StaleError):
+        return HTTPException(409, STALE_MSG, headers={"X-Manuvi-Conflict": "stale"})
+    return HTTPException(409, str(e))
 
 
 class EditBody(BaseModel):
     target: str
+    rev: Optional[int] = None  # the segment `_rev` the editor saw; a mismatch is a stale write (409)
 
 
 class DecideBody(BaseModel):
     action: str  # approve | reject | needs_review
     nonce: Optional[str] = None  # single-use, issued when a signal segment is fetched individually
+    rev: Optional[int] = None
 
 
 class BulkBody(BaseModel):
@@ -74,16 +86,19 @@ def build_review_router(resolve: Callable[[Request], JobStore],
     def edit(request: Request, sid: str, body: EditBody):
         s = seg_or_404(request, sid)
         authorize(request, "edit", s)
-        return resolve(request).edit(sid, body.target, actor=actor(request))
+        try:
+            return resolve(request).edit(sid, body.target, actor=actor(request), rev=body.rev)
+        except ConflictError as e:
+            raise conflict(e)
 
     @router.post("/segments/{sid}/decision")
     def decide(request: Request, sid: str, body: DecideBody):
         s = seg_or_404(request, sid)
         authorize(request, {"approve": "approve", "needs_review": "flag"}.get(body.action, "reject"), s)
         try:
-            return resolve(request).decide(sid, body.action, nonce=body.nonce, actor=actor(request))
+            return resolve(request).decide(sid, body.action, nonce=body.nonce, actor=actor(request), rev=body.rev)
         except ConflictError as e:
-            raise HTTPException(409, str(e))
+            raise conflict(e)
         except ValueError:
             raise HTTPException(422, "bad action")
 

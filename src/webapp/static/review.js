@@ -101,17 +101,36 @@
       catch (e) { say('Not saved: ' + e.message); }
     });
   }
-  async function saveEdit() { await api(A('/segments/' + encodeURIComponent(cur.id)), {method: 'PUT', body: {target: $('#tgt').value}}); say('Edit saved.'); viewSeg(cur.id); }
+  /* A stale write (someone else saved first) is shown as text with the warning glyph of .err-text, in a role=alert
+     region that takes focus, with a button that reloads the segment. Nothing is overwritten silently. */
+  function staleNotice() {
+    const box = document.createElement('div');
+    box.className = 'panel';
+    box.setAttribute('role', 'alert');
+    box.tabIndex = -1;
+    box.innerHTML = '<p class="err-text">Someone else changed this, reload.</p><button type="button" id="reload">Reload this segment</button>';
+    main.prepend(box);
+    $('#reload').onclick = () => viewSeg(cur.id);
+    box.focus();
+    say('Someone else changed this, reload.');
+  }
+  async function saveEdit() {
+    try {
+      const r = await api(A('/segments/' + encodeURIComponent(cur.id)), {method: 'PUT', body: {target: $('#tgt').value, rev: cur._rev ?? 0}});
+      cur._rev = r._rev;
+      say('Edit saved.'); viewSeg(cur.id);
+    } catch (e) { if (e.stale) staleNotice(); else say('Not saved: ' + e.message); }
+  }
   async function decide(action) {
     try {
       const t = $('#tgt');
-      if (isFounder && t && t.value !== cur.target) await api(A('/segments/' + encodeURIComponent(cur.id)), {method: 'PUT', body: {target: t.value}});
-      await api(A(`/segments/${encodeURIComponent(cur.id)}/decision`), {method: 'POST', body: {action, nonce: cur.nonce}});
+      if (isFounder && t && t.value !== cur.target) await api(A('/segments/' + encodeURIComponent(cur.id)), {method: 'PUT', body: {target: t.value, rev: cur._rev ?? 0}}).then((r) => { cur._rev = r._rev; });
+      await api(A(`/segments/${encodeURIComponent(cur.id)}/decision`), {method: 'POST', body: {action, nonce: cur.nonce, rev: cur._rev ?? 0}});
       const word = {approve: 'Approved', reject: 'Rejected', needs_review: 'Flagged for review'}[action];
       say(`${word} ${cur.id}.`);
       main.classList.add('flash'); setTimeout(() => main.classList.remove('flash'), 300);
       if (cur.next) location.hash = '#/seg/' + encodeURIComponent(cur.next); else viewSeg(cur.id);
-    } catch (e) { say('Not done: ' + e.message); }
+    } catch (e) { if (e.stale) staleNotice(); else say('Not done: ' + e.message); }
   }
 
   async function viewTerms() {

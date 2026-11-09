@@ -139,14 +139,18 @@ def test_rate_limit_locks_out_then_recovers(env, clock):
     assert c.post("/api/login", json={"user": "huyen", "password": PW_F}).status_code == 200
 
 
-def test_rate_limit_is_per_address(env):
+def test_rate_limit_is_per_address(env, clock):
+    """The hard lock is per address. The soft per-user delay (below) is the only thing another address sees."""
     app, *_ = env
     a = TestClient(app, base_url=BASE, client=("198.51.100.1", 1))
     b = TestClient(app, base_url=BASE, client=("198.51.100.2", 1))
     for _ in range(5):
         a.post("/api/login", json={"user": "huyen", "password": "wrong-wrong"})
     assert a.post("/api/login", json={"user": "huyen", "password": PW_F}).status_code == 429
+    assert b.post("/api/login", json={"user": "huyen", "password": PW_F}).status_code == 429  # soft delay, per user
+    clock.t += 5                                                      # ... which is seconds, not the 15 min lock
     assert b.post("/api/login", json={"user": "huyen", "password": PW_F}).status_code == 200
+    assert a.post("/api/login", json={"user": "huyen", "password": PW_F}).status_code == 429  # a stays locked
 
 
 def test_password_hashing_and_user_config():
@@ -309,12 +313,19 @@ def test_reviewer_is_read_only_until_the_founder_allows(env, tmp_path):
     assert r.post(f"/api/jobs/{JID}/resume", json={}).status_code == 403
     assert r.post(f"/api/jobs/{JID}/reviewer-access", json={"allow": True}).status_code == 403
     assert r.get("/api/events").status_code == 403
-    assert len(r.get(f"/api/jobs/{JID}/queue").json()) == 40           # reading is allowed
-    ok_id = next(x["id"] for x in r.get(f"/api/jobs/{JID}/queue?status=ok").json() if x["kind"] != "signal")
+    # reading the segments needs the same founder grant as reviewing them
+    assert r.get(f"/api/jobs/{JID}/queue").status_code == 403
+    assert r.get(f"/api/jobs/{JID}/audit").status_code == 403 and r.get(f"/api/jobs/{JID}/terms").status_code == 403
+    assert f.post(f"/api/jobs/{JID}/reviewer-access", json={"allow": True}).json()["reviewer_can_review"] is True
+    assert len(r.get(f"/api/jobs/{JID}/queue").json()) == 40
+    assert f.post(f"/api/jobs/{JID}/reviewer-access", json={"allow": False}).status_code == 200
+    assert r.get(f"/api/jobs/{JID}/queue").status_code == 403
+    ok_id = next(x["id"] for x in f.get(f"/api/jobs/{JID}/queue?status=ok").json() if x["kind"] != "signal")
     d = {"action": "approve"}
     assert r.post(f"/api/jobs/{JID}/segments/{ok_id}/decision", json=d).status_code == 403
     assert r.post(f"/api/jobs/{JID}/segments/{ok_id}/comment", json={"text": "hm"}).status_code == 403
-    assert f.post(f"/api/jobs/{JID}/reviewer-access", json={"allow": True}).json() == {"reviewer_can_review": True}
+    assert f.post(f"/api/jobs/{JID}/reviewer-access", json={"allow": True}).json() == {
+        "reviewer_can_review": True, "reviewer_can_read": False}
     assert r.post(f"/api/jobs/{JID}/segments/{ok_id}/decision", json=d).status_code == 200
     assert r.post(f"/api/jobs/{JID}/segments/{ok_id}/comment", json={"text": "checked against the PDF"}).status_code == 200
     # never: edit, reject, terms, safety
@@ -377,8 +388,11 @@ def test_review_pages_carry_role_and_csp_safe_config(env, tmp_path):
     app, store, _ = env
     seed_job(store, tmp_path, reviewer_ok=False)
     r = login(app, "rev", PW_R)
+    assert r.get(f"/review/{JID}").status_code == 403                   # the review UI is closed without the grant
+    f = login(app)
+    f.post(f"/api/jobs/{JID}/reviewer-access", json={"allow": True})
     page = r.get(f"/review/{JID}")
-    assert page.status_code == 200 and '"role": "reviewer"' in page.text and '"canReview": false' in page.text
+    assert page.status_code == 200 and '"role": "reviewer"' in page.text and '"canReview": true' in page.text
     assert "<script>" not in page.text.replace('<script type="application/json"', "")
     assert r.get("/review/nosuchjob1").status_code == 404
 
@@ -401,9 +415,14 @@ def test_cancel_resume_and_state_rules(env, tmp_path):
 
 # ---- downloads
 def test_download_local_and_not_ready(env, tmp_path):
+    """Downloads are the founder's by default. The old version of this test logged in as the reviewer and treated
+    a successful download as intended; that is the leak (the outputs hold the whole manual, source and translation).
+    A reviewer now gets 403 until the founder sets `reviewer_can_read`, which is a separate grant from
+    `reviewer_can_review`, and taking review away takes the downloads away too."""
     app, store, _ = env
     seed_job(store, tmp_path)
-    c = login(app, "rev", PW_R)
+    f, rv = login(app), login(app, "rev", PW_R)
+    c = f
     assert c.get(f"/download/{JID}/vi_pdf").status_code == 404
     store.put_bytes(JID, "out/vi.pdf", b"%PDF-vi")
     store.put_status(JID, JobStatus(state=JobState.done, outputs=["out/vi.pdf"]))
@@ -412,6 +431,15 @@ def test_download_local_and_not_ready(env, tmp_path):
     assert c.get(f"/download/{JID}/input").status_code == 404                    # only the four outputs
     assert c.get(f"/download/{JID}/..%2fjob.json").status_code == 404
     assert c.get(f"/api/jobs/{JID}").json()["outputs"]["vi_pdf"] is True
+    # reviewer: forbidden by default, also when only review is granted, allowed with reviewer_can_read
+    assert rv.get(f"/download/{JID}/vi_pdf").status_code == 403
+    f.post(f"/api/jobs/{JID}/reviewer-access", json={"allow": True})
+    assert rv.get(f"/download/{JID}/vi_pdf").status_code == 403
+    assert f.post(f"/api/jobs/{JID}/reviewer-access", json={"read": True}).json()["reviewer_can_read"] is True
+    assert rv.get(f"/download/{JID}/vi_pdf").status_code == 200
+    f.post(f"/api/jobs/{JID}/reviewer-access", json={"allow": False})
+    assert rv.get(f"/download/{JID}/vi_pdf").status_code == 403
+    assert rv.get(f"/download/{JID}/nope").status_code == 403           # no probing of kinds without the grant
 
 
 def test_s3_backed_portal_presigned_downloads_and_review_sync(tmp_path, users, clock):
