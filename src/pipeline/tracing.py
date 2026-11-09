@@ -62,6 +62,32 @@ class LangfuseExporter:
         self.client.create_event(name=f"pipeline.{clean.get('node', 'node')}", metadata=clean)
 
 
+class S3Exporter:
+    """Uploads masked records to S3 (SSE) when MANUVI_S3_BUCKET is set. Off by default: only added by
+    `s3_enabled()` (MANUVI_S3_TRACE=1). One object per job, rewritten from a buffer every `flush_every`."""
+
+    def __init__(self, job_id: str, sink: Any = None, flush_every: int = 50):
+        from ..common.s3_sink import S3Sink
+        self.job_id, self.sink, self.flush_every = job_id, sink or S3Sink(), flush_every
+        self.buf: list[dict[str, Any]] = []
+
+    def export(self, rec: dict[str, Any]) -> None:
+        if not self.sink.enabled:
+            return
+        self.buf.append(sanitize(rec))
+        if len(self.buf) % self.flush_every == 0:
+            self.flush()
+
+    def flush(self) -> None:
+        if self.buf:
+            self.sink.upload_trace(self.job_id, self.buf)
+
+
+def s3_enabled(env: Optional[dict] = None) -> bool:
+    env = os.environ if env is None else env
+    return env.get("MANUVI_S3_TRACE", "").strip().lower() in ("1", "true", "yes", "on") and bool(env.get("MANUVI_S3_BUCKET"))
+
+
 def langfuse_enabled(env: Optional[dict] = None) -> bool:
     env = os.environ if env is None else env
     return env.get("MANUVI_LANGFUSE", "").strip().lower() in ("1", "true", "yes", "on")
