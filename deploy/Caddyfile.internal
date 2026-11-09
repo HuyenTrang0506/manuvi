@@ -1,0 +1,27 @@
+# No domain yet. WARNING: login over plain HTTP is NOT acceptable. This file therefore never
+# serves the app over HTTP: port 80 only redirects to HTTPS, and HTTPS uses a self-signed
+# certificate from Caddy's internal CA. Browsers will warn once; the traffic is still encrypted.
+# For a trusted certificate use a domain (Caddyfile) or a Cloudflare Tunnel.
+http://:80 {
+	redir https://{host}{uri} permanent
+}
+
+https://:443 {
+	tls internal {
+		on_demand
+	}
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+	reverse_proxy app:8000
+}
+
+# Cloudflare Tunnel origin (internal only, not published).
+http://:8080 {
+	reverse_proxy app:8000
+}
