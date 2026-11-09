@@ -21,3 +21,11 @@ nckh_kha.jpg
 .env
 
 # LLM gateway default response cache lives in workspace/llm_cache.sqlite (ignored via workspace/)
+
+# eval fixtures ship with the package
+!src/eval/data/
+!src/eval/data/**
+
+# eval fixtures ship with the package
+!src/eval/data/
+!src/eval/data/**
