@@ -95,7 +95,59 @@ class Worker:
         except Exception:
             return {}
         return {"chunks": s["chunks"], "pending": s["pending"], "by_status": s["by_status"],
-                "calls": s["calls"], "reused": s["reused_from_ledger"], "cost_usd": s["cost_usd"]}
+                "calls": s["calls"], "reused": s["reused_from_ledger"], "cost_usd": s["cost_usd"],
+                "page_states": self._page_states(work), "sections": self._section_progress(work, job_id)}
+
+    @staticmethod
+    def _section_progress(work: Path, job_id: str) -> dict[str, dict]:
+        """Per section: text blocks, blocks still pending and ledger cost in USD. No text."""
+        import sqlite3
+        try:
+            chunks = json.loads((work / "chunks.json").read_text("utf-8"))
+            sp = work / SEGMENTS_FILE
+            done = {s["id"] for s in json.loads(sp.read_text("utf-8"))} if sp.exists() else set()
+        except (OSError, ValueError, KeyError):
+            return {}
+        cost: dict[str, float] = {}
+        try:
+            con = sqlite3.connect(f"file:{work / LEDGER_FILE}?mode=ro", uri=True, timeout=5)
+            try:
+                cost = dict(con.execute("SELECT chunk, COALESCE(SUM(cost_usd),0) FROM calls "
+                                        "WHERE job_id=? AND outcome='billed' GROUP BY chunk", (job_id,)).fetchall())
+            finally:
+                con.close()
+        except sqlite3.Error:
+            pass
+        out: dict[str, dict] = {}
+        for c in chunks:  # chunks.json is in processing order, so priority sections come first
+            d = out.setdefault(c["section"], {"chunks": 0, "pending": 0, "cost_usd": 0.0})
+            d["chunks"] += 1
+            d["pending"] += c["id"] not in done
+            d["cost_usd"] = round(d["cost_usd"] + cost.get(c["id"], 0.0), 6)
+        return out
+
+    @staticmethod
+    def _page_states(work: Path) -> dict[str, str]:
+        """Printed page label (e.g. "23-4") -> pending | review | done. Counts only, no text."""
+        try:
+            spec = json.loads((work / JOBSPEC_FILE).read_text("utf-8"))
+            chunks = json.loads((work / "chunks.json").read_text("utf-8"))
+            sp = work / SEGMENTS_FILE
+            segs = {s["id"]: s for s in json.loads(sp.read_text("utf-8"))} if sp.exists() else {}
+        except (OSError, ValueError, KeyError):
+            return {}
+        by_page: dict[int, list[str]] = {}
+        for c in chunks:
+            s = segs.get(c["id"])
+            state = "pending" if s is None else ("review" if s.get("status") != "ok" or s.get("decision") == "pending"
+                                                 and s.get("kind") == "signal" else "done")
+            by_page.setdefault(c["page"], []).append(state)
+        out = {}
+        for p in spec["pages"]:
+            st = by_page.get(p["pdf_page"], [])
+            out[p["label"]] = ("pending" if "pending" in st else "review" if "review" in st else "done") if st \
+                else ("review" if p.get("scanned") else "done")
+        return out
 
     # ---- file sync
     def _pull(self, job_id: str, work: Path) -> None:
@@ -187,7 +239,7 @@ class Worker:
             if rebuild:
                 return self._finish(msg, job_id, rec, work, final_state=JobState.done, outcome="rebuilt")
             if not (work / "chunks.json").exists():
-                info = prepare(work, work / "input.pdf", rec.sections, rec.page_map)
+                info = prepare(work, work / "input.pdf", rec.sections, rec.page_map, rec.priority_sections)
                 self._push_meta(job_id, work)
                 self._status(job_id, JobState.running, pages=info["pages"], chunks=info["chunks"],
                              pending=info["chunks"])

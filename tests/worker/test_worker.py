@@ -141,3 +141,40 @@ def test_merge_keeps_human_state_for_same_version():
     m = {s["id"]: s for s in merge_segments(local, remote)}
     assert m["a"]["decision"] == "approved" and m["a"]["target"] == "edited"
     assert m["b"]["target"] == "new" and m["b"]["decision"] == "pending"   # re-run replaced it
+
+
+def test_priority_sections_are_processed_first_and_reported(tmp_path):
+    from tests.worker.conftest import make_pdf
+    import pymupdf
+    doc = pymupdf.open()
+    for label, text in (("23-1", "Remove cover plate."), ("43-1", "Check relay YT12-AB3C."),
+                        ("43-2", "Tighten bolt to 12 Nm.")):
+        page = doc.new_page()
+        page.insert_textbox(pymupdf.Rect(72, 72, 520, 120), text, fontsize=11)
+        page.insert_text((280, 820), label, fontsize=9)
+    doc.save(str(tmp_path / "two.pdf"))
+    store, q = LocalStore(tmp_path / "s"), DirQueue(tmp_path / "q")
+    store.put_job(JobRecord(id=JID, name="t", owner="f", sections="23:1-1,43:1-2", priority_sections=["43"]))
+    store.put_bytes(JID, "input.pdf", (tmp_path / "two.pdf").read_bytes())
+    q.enqueue(JID)
+
+    class Spy(DemoTranslator):
+        seen: list = []
+
+        def complete(self, req, model_id):
+            Spy.seen.append(next(m["content"] for m in req.messages if m["role"] == "user"))
+            return super().complete(req, model_id)
+
+    Spy.seen = []
+    w = Worker(q, store, tmp_path / "w", profile="dev", adapters=lambda: {"fake": Spy()})
+    assert w.run_once() == "done"
+    chunks = json.loads(store.get_bytes(JID, "chunks.json"))
+    secs = [c["section"] for c in chunks]
+    assert secs.index("23") > max(i for i, s in enumerate(secs) if s == "43")   # priority section first
+    first_cover = next(i for i, t in enumerate(Spy.seen) if "cover plate" in t)
+    assert "relay" in Spy.seen[0] and all("cover plate" not in t for t in Spy.seen[:first_cover])
+    assert any("relay" in t for t in Spy.seen[:first_cover]) and any("bolt" in t for t in Spy.seen[:first_cover])
+    st = store.get_status(JID)
+    assert list(st.sections)[0] == "43" and st.sections["43"]["pending"] == 0 and st.sections["23"]["chunks"] >= 1
+    assert all("cost_usd" in v for v in st.sections.values())
+    assert list(st.page_states)[0].startswith("43-")

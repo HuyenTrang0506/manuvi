@@ -20,7 +20,8 @@ TERMS_FILE = "terms.json"
 MAX_CHUNK_CHARS = 4000
 
 
-def prepare(work: Path, pdf: Path, sections: str, page_map: dict[str, int]) -> dict:
+def prepare(work: Path, pdf: Path, sections: str, page_map: dict[str, int],
+            priority_sections: list[str] | None = None) -> dict:
     """Run intake. Raises src.intake.jobspec.IntakeError (structural problems) or ValueError."""
     pm_path = None
     if page_map:
@@ -28,9 +29,12 @@ def prepare(work: Path, pdf: Path, sections: str, page_map: dict[str, int]) -> d
         pm_path = work / "page_map.yaml"
         pm_path.write_text(yaml.safe_dump({k: int(v) for k, v in page_map.items()}), "utf-8")
     spec = build_jobspec(pdf, sections, pm_path)
+    prio = {str(x) for x in (priority_sections or [])}
+    spec.pages.sort(key=lambda p: p.section not in prio)  # page strip shows priority pages first
     write_jobspec(spec, work / JOBSPEC_FILE)
     chunks, layout = [], {}
-    text_pages = [p for p in spec.pages if not p.scanned]
+    # priority sections first (stable inside each group): chunk ids follow processing order
+    text_pages = sorted((p for p in spec.pages if not p.scanned), key=lambda p: p.section not in prio)
     with pymupdf.open(pdf) as doc:
         for p in text_pages:
             page = doc[p.pdf_page - 1]

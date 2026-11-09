@@ -93,7 +93,7 @@ class JobStore:
             os.fsync(f.fileno())
         os.replace(tmp, path)
 
-    def _audit(self, action, item_type, item_id, old, new, extra=None) -> None:
+    def _audit(self, action, item_type, item_id, old, new, extra=None, actor=None) -> None:
         """Append a hash-chained record and fsync. Call while holding the lock."""
         prev = "0" * 64
         if self.audit_path.exists():
@@ -102,6 +102,8 @@ class JobStore:
                 prev = hashlib.sha256(lines[-1].encode("utf-8")).hexdigest()
         rec = {"ts": now(), "action": action, "type": item_type, "id": item_id, "old": old, "new": new,
                "prev_hash": prev}
+        if actor:
+            rec["user"] = actor
         if extra:
             rec.update(extra)
         with self.audit_path.open("a", encoding="utf-8") as f:
@@ -169,7 +171,7 @@ class JobStore:
                 return s
         raise KeyError(sid)
 
-    def edit(self, sid: str, target: str) -> dict:
+    def edit(self, sid: str, target: str, actor: str | None = None) -> dict:
         with self.lock, file_lock(self.seg_path):
             segs = self._load_segments()
             s = self._find(segs, sid)
@@ -185,11 +187,12 @@ class JobStore:
                 s["status"] = "error"
             self._audit("edit", "segment", sid, old, target,
                         {"old_state": old_state, "new_state": {"decision": s["decision"], "status": s["status"]},
-                         "qa_errors": [i["rule_id"] for i in errs]})
+                         "qa_errors": [i["rule_id"] for i in errs]}, actor=actor)
             self._write(self.seg_path, segs)
             return s
 
-    def decide(self, sid: str, action: str, nonce: str | None = None, bulk: bool = False) -> dict:
+    def decide(self, sid: str, action: str, nonce: str | None = None, bulk: bool = False,
+               actor: str | None = None) -> dict:
         with self.lock, file_lock(self.seg_path):
             segs = self._load_segments()
             s = self._find(segs, sid)
@@ -217,13 +220,23 @@ class JobStore:
             else:
                 raise ValueError(action)
             self._audit(action, "segment", sid, old, {"decision": s["decision"], "status": s["status"]},
-                        {"bulk": bulk, "explicit": explicit})
+                        {"bulk": bulk, "explicit": explicit}, actor=actor)
             self._write(self.seg_path, segs)
             if explicit:
                 self.nonces.pop(sid, None)
             return s
 
-    def bulk_approve(self, ids: list[str]) -> dict:
+    def comment(self, sid: str, text: str, actor: str | None = None) -> dict:
+        """A review note. Goes to the audit log only; it never changes status, target or decision."""
+        text = " ".join(text.split())[:500]
+        if not text:
+            raise ValueError("empty comment")
+        with self.lock, file_lock(self.seg_path):
+            self._find(self._load_segments(), sid)
+            self._audit("comment", "segment", sid, None, text, actor=actor)
+        return {"id": sid, "comment": text}
+
+    def bulk_approve(self, ids: list[str], actor: str | None = None) -> dict:
         done, skipped = [], []
         for sid in ids:
             try:
@@ -238,14 +251,14 @@ class JobStore:
                 skipped.append({"id": sid, "reason": f"status {s['status']}: approve individually"})
                 continue
             try:
-                self.decide(sid, "approve", bulk=True)
+                self.decide(sid, "approve", bulk=True, actor=actor)
                 done.append(sid)
             except ConflictError as e:
                 skipped.append({"id": sid, "reason": str(e)})
         return {"approved": done, "skipped": skipped}
 
     # --- terms
-    def decide_term(self, tid: str, action: str, vi: str | None = None) -> dict:
+    def decide_term(self, tid: str, action: str, vi: str | None = None, actor: str | None = None) -> dict:
         with self.lock, file_lock(self.terms_path):
             terms = self._load_terms()
             t = next((x for x in terms if x["id"] == tid), None)
@@ -261,7 +274,8 @@ class JobStore:
                 t["decision"] = "approved" if action == "approve" else "rejected"
             else:
                 raise ValueError(action)
-            self._audit("term_" + action, "term", tid, old, {"vi": t.get("vi"), "decision": t["decision"]})
+            self._audit("term_" + action, "term", tid, old, {"vi": t.get("vi"), "decision": t["decision"]},
+                        actor=actor)
             self._write(self.terms_path, terms)
             return t
 

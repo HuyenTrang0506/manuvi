@@ -73,6 +73,8 @@ class JobRecord(BaseModel):
     pdf_name: str = "input.pdf"
     pdf_bytes: int = 0
     reviewer_can_review: bool = False               # founder allows non-safety review by the reviewer role
+    priority_sections: list[str] = Field(default_factory=list)  # worked first; comes from the job spec, never hard-coded
+    submitted: bool = False                         # False = draft (PDF may still be uploading), never queued
 
     @field_validator("id")
     @classmethod
@@ -94,6 +96,8 @@ class JobStatus(BaseModel):
     cost_usd: float = 0.0
     error_code: Optional[str] = None                # short code, never text from the document
     outputs: list[str] = Field(default_factory=list)  # names available for download
+    page_states: dict[str, str] = Field(default_factory=dict)  # printed page label -> pending|review|done
+    sections: dict[str, dict] = Field(default_factory=dict)    # section -> {chunks, pending, cost_usd}
 
     @property
     def progress(self) -> float:
