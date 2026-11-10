@@ -1,0 +1,22 @@
+{
+  "_note": "Reconstructed from the first real-model eval (ollama qwen2.5:7b, 55 cases). Only the failing fragments reported in that run are exact; the surrounding text is rebuilt so offline tests can replay the failure. Inputs are the masked BODY (signal word already removed).",
+  "EL-004": {
+    "calls": [
+      "Ắc quy sinh ra khí nổ. Giữ tia lửa và ngọn lửa tránh xa. Điện áp tại đầu cực là 24 V. 远离你的翻译区域…",
+      "Ắc quy sinh ra khí nổ. Giữ tia lửa và ngọn lửa tránh xa. Điện áp tại đầu cực là ⟦P001⟧."
+    ]
+  },
+  "EL-005": {
+    "calls": [
+      "CÔNG TY CẢNH BÁO: Quấn chặt vít cực ắc quy với ⟦P001⟧. Không quấn chặt quá.",
+      "Siết bu lông cực ắc quy với mô-men ⟦P001⟧. Không siết quá chặt."
+    ]
+  },
+  "EL-004-never-repaired": {
+    "calls": [
+      "Ắc quy sinh ra khí nổ. 远离你的翻译区域…",
+      "Ắc quy sinh ra khí nổ. 远离你的翻译区域…",
+      "Ắc quy sinh ra khí nổ. 远离你的翻译区域…"
+    ]
+  }
+}

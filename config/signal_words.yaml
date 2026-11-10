@@ -1,4 +1,9 @@
 # Fixed EN -> VI forms for signal words. A mismatch between source and target is an Error.
+# The pipeline and `manuvi eval` split a LEADING signal word off BEFORE the model call and re-attach this fixed
+# Vietnamese form afterwards (src/guard/segment.py), so the model never translates it.
+status: proposed          # PROPOSED by engineering; NOT approved
+approval: "pending founder/uncle approval (set status: approved and approved_by when they sign off)"
+approved_by: ""
 signal_words:
   DANGER: "NGUY HIỂM"
   WARNING: "CẢNH BÁO"
