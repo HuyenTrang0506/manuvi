@@ -17,7 +17,8 @@ from typing import Any, Callable, Optional, TypedDict
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from ..guard import MAX_FIX_ATTEMPTS, QAContext, Severity, load_patterns, load_signal_table, mask, qa_check, unmask
+from ..guard import QAContext, Severity, load_patterns, load_signal_table, unmask
+from ..guard.segment import check, finalize_target, fix_messages, needs_fix, prepare
 from ..llm_gateway import (BudgetExceeded, DataClassViolation, Gateway, GatewayError, LLMRequest, NotConfigured)
 from ..llm_gateway.adapters import estimate_tokens
 from ..terms import TermStore, TranslationMemory, build_translation_prompt, select_glossary_subset
@@ -25,7 +26,7 @@ from .db import InFlightUnknown, JobDB, Ledger
 from .schema import KINDS, Segment
 from .tracing import Tracer, text_hash
 
-PROMPT_VERSION = "pipe-v1"
+PROMPT_VERSION = "pipe-v2"
 PLACEHOLDER_RULE = ("Tokens like ⟦P001⟧ stand for protected codes. Copy each one exactly once, unchanged, "
                     "in the same order. Never translate, drop or invent them.")
 RISK_BASE = {"signal": 0.8, "table": 0.4, "step": 0.3, "prose": 0.1, "label": 0.1}
@@ -133,15 +134,19 @@ def build_graph(ctx: PipelineContext, checkpointer):
         cur = dict(state["cur"])
         c = db.get_chunk(cur["id"])
         try:
-            masked, mapping = mask(c.source, ctx.qa_ctx.patterns)
+            prep = prepare(c.source, ctx.qa_ctx.patterns, ctx.qa_ctx.signal_table)
         except ValueError as e:
             cur["skip"] = f"MASK001: {e}"
             return {"cur": cur, "_trace": {"status": "skipped"}}
-        cur.update(masked=masked, mapping=mapping)
+        # a leading signal word is split off here and re-attached from config after the call (never sent to the model)
+        cur.update(masked=prep.masked, mapping=prep.mapping, prefix=prep.prefix, signal=prep.signal)
+        if not prep.masked.strip():
+            cur["raw"] = ""   # signal word only: nothing to translate, no LLM call
         return {"cur": cur, "_trace": {"input_hash": text_hash(c.source), "input_len": len(c.source)}}
 
     def after_mask(state: State) -> str:
-        return "record" if state["cur"].get("skip") else "prompt"
+        cur = state["cur"]
+        return "record" if cur.get("skip") else ("unmask" if "raw" in cur else "prompt")
 
     def prompt_node(state: State) -> dict:
         cur = dict(state["cur"])
@@ -200,30 +205,26 @@ def build_graph(ctx: PipelineContext, checkpointer):
     def unmask_node(state: State) -> dict:
         cur = dict(state["cur"])
         cur["raw"] = unicodedata.normalize("NFC", cur["raw"])
-        cur["target"] = unmask(cur["raw"], cur["mapping"])
+        cur["target"] = unmask(cur.get("prefix", "") + cur["raw"], cur["mapping"])
         return {"cur": cur}
 
     def qa(state: State) -> dict:
         cur = dict(state["cur"])
         c = db.get_chunk(cur["id"])
-        qctx = QAContext(patterns=ctx.qa_ctx.patterns, signal_table=ctx.qa_ctx.signal_table, mapping=cur["mapping"])
-        issues = qa_check(c.source, cur["raw"], qctx)
+        prep = prepare(c.source, ctx.qa_ctx.patterns, ctx.qa_ctx.signal_table)
+        issues = check(prep, cur["raw"], ctx.qa_ctx)   # same QA as `manuvi eval`: assembled text vs ORIGINAL source
         cur["issues"] = [i.model_dump(mode="json") for i in issues]
         n_err = sum(i.severity == Severity.error for i in issues)
         return {"cur": cur, "_trace": {"issues": n_err, "attempt": cur["attempt"]}}
 
     def after_qa(state: State) -> str:
         cur = state["cur"]
-        has_err = any(i["severity"] == "error" for i in cur["issues"])
-        return "fix" if has_err and cur["attempt"] < MAX_FIX_ATTEMPTS else "record"
+        return "fix" if needs_fix(cur["issues"], cur["attempt"]) else "record"
 
     def fix(state: State) -> dict:
         cur = dict(state["cur"])
         cur["attempt"] += 1
-        hints = "\n".join(f"- {i['message']} Hint: {i['fix_hint']}" for i in cur["issues"] if i["severity"] != "ok")
-        messages = [*cur["messages"], {"role": "assistant", "content": cur["raw"]},
-                    {"role": "user", "content": f"FIX (attempt {cur['attempt']}): the translation above failed deterministic checks.\n"
-                     + hints + "\nReturn the corrected translation only."}]
+        messages = fix_messages(cur["messages"], cur["raw"], cur["issues"], cur["attempt"])
         alias = "strong" if ctx.strong_ok() else "bulk"
         return _llm_node({**state, "cur": cur}, f"fix{cur['attempt']}", alias, messages)
 
@@ -246,7 +247,8 @@ def build_graph(ctx: PipelineContext, checkpointer):
             if kind == "signal":  # safety text is never auto-accepted
                 status = "needs_review"
                 strs.append("SAFETY: signal segment needs human approval")
-            seg = Segment(id=c.id, page=c.page, section=c.section, source=c.source, target=cur["target"],
+            seg = Segment(id=c.id, page=c.page, section=c.section, source=c.source,
+                          target=finalize_target(issues, cur["target"]),   # script-guard failures are never shipped
                           status=status, issues=strs, risk=risk_of(kind, status, n_err, n_warn), kind=kind)
         db.put_segment(seg)
         return {"_trace": {"status": seg.status}}
@@ -274,7 +276,7 @@ def build_graph(ctx: PipelineContext, checkpointer):
     b.add_edge("load", "classify")
     b.add_edge("classify", "pick")
     b.add_conditional_edges("pick", after_pick, {"mask": "mask", "finalize": "finalize"})
-    b.add_conditional_edges("mask", after_mask, {"record": "record", "prompt": "prompt"})
+    b.add_conditional_edges("mask", after_mask, {"record": "record", "prompt": "prompt", "unmask": "unmask"})
     b.add_edge("prompt", "translate")
     b.add_conditional_edges("translate", after_llm, {"record": "record", "unmask": "unmask"})
     b.add_edge("unmask", "qa")

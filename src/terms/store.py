@@ -27,6 +27,9 @@ class TermRecord(BaseModel):
     approved_by: str = ""
     version: int = 0
     protected: bool = False
+    # Always inject into the prompt when the term (or an -s/-ed/-ing form) occurs: exempt from the subset cap and shown
+    # under "MUST use". Only meaningful for approved terms (verbs like tighten -> siết, battery -> ắc quy).
+    must_use_in_prompt: bool = False
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"))
 
     @property

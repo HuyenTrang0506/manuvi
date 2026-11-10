@@ -37,7 +37,7 @@ def write_glossary_xlsx(csv_path: Path | str, xlsx_path: Path | str) -> Path:
             if isinstance(c.value, str):
                 c.data_type = "s"  # never interpreted as a formula
         row[2].fill = PatternFill("solid", fgColor="FFF2CC")  # status = proposed
-    for col, w in zip("ABCDEFGHI", (30, 32, 11, 12, 18, 48, 16, 28, 36)):
+    for col, w in zip("ABCDEFGHIJ", (30, 32, 11, 12, 18, 48, 16, 28, 36, 14)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
     xlsx_path = Path(xlsx_path)

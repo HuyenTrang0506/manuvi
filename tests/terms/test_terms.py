@@ -136,3 +136,17 @@ def test_formula_cell_rejected_and_stale(tmp_path):
     res = import_terms_xlsx(s, x, "qa")
     assert not res.ok and any(i.code == "stale" for i in res.issues)
     assert s.get("hydraulic pump").term_vi == "newer"
+
+
+def test_must_use_terms_are_injected_first_uncapped_and_match_verb_forms(tmp_path):
+    s = TermStore(tmp_path / "t.jsonl")
+    mk = lambda en, vi, mu=False: TermRecord(term_en=en, term_vi=vi, status="approved", citation="c", approved_by="a",
+                                            must_use_in_prompt=mu)
+    s.commit([mk("pump", "bơm"), mk("filter", "bộ lọc"), mk("tighten", "siết", True), mk("battery", "ắc quy", True)])
+    got = [r.term_en for r in select_glossary_subset("Tightened the battery; check pump and filter.", s, max_terms=1)]
+    assert got[:2] == ["battery", "tighten"] and len(got) == 3      # both must-use kept, cap applies to the rest
+    p = build_translation_prompt("Tighten ⟦P001⟧", select_glossary_subset("Tighten the battery pump", s), [], "v1")
+    sysmsg = p["messages"][0]["content"]
+    assert sysmsg.index("MUST use") < sysmsg.index("tighten => siết") < sysmsg.index("Glossary (EN => VI)")
+    assert "pump => bơm" in sysmsg.split("Glossary (EN => VI)")[1]
+    assert select_glossary_subset("overtighten the bolt", s) == []   # no partial-word match

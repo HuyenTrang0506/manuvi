@@ -8,7 +8,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from src.guard.masking import load_patterns, mask, unmask
+import unicodedata
+
+from src.guard import load_signal_table
+from src.guard.masking import load_patterns, mask
+from src.guard.segment import prepare, run_guarded
 from src.llm_gateway import Gateway, LLMRequest, RecordedAdapter, RecordedMiss, cache_key
 from src.llm_gateway.config import ROOT
 from src.terms.prompt import build_translation_prompt, select_glossary_subset
@@ -17,7 +21,7 @@ from src.terms.store import TermRecord
 from .cases import DEFAULT_GLOSSARY, DEFAULT_SET, EvalCase, GlossaryTerm, load_cases, load_glossary
 from .report import DEFAULT_SOFT_TOLERANCE_PCT, GateResult, Output, build_report, gate, render_markdown
 
-PROMPT_VERSION = "eval-v1"
+PROMPT_VERSION = "eval-v2"
 RECORDED_MODEL_ID = "eval-recorded"
 EVAL_ROOT = ROOT / "workspace" / "eval"   # workspace/ is gitignored: outputs of customer runs stay local
 
@@ -28,7 +32,7 @@ class _ListStore:
 
     def __init__(self, g: dict[str, GlossaryTerm]):
         self._recs = [TermRecord(term_en=t.term_en, term_vi=t.term_vi, status="approved", citation="eval-proposal",
-                                 approved_by="eval-harness") for t in g.values()]
+                                 approved_by="eval-harness", must_use_in_prompt=t.must_use_in_prompt) for t in g.values()]
 
     def approved(self) -> list[TermRecord]:
         return self._recs
@@ -36,13 +40,19 @@ class _ListStore:
 
 def build_request(case: EvalCase, g: dict[str, GlossaryTerm], run_id: str, *, data_class: str = "customer",
                   alias: str = "bulk") -> tuple[LLMRequest, dict[str, str]]:
-    masked, mapping = mask(case.source, load_patterns())
+    """First-call request for a case: the model sees the signal-stripped, masked BODY (as in the pipeline)."""
+    prep = prepare(case.source, load_patterns(), load_signal_table())
+    return _request(prep.masked, _messages(prep.masked, g), case.id, run_id, data_class, alias), prep.mapping
+
+
+def _messages(masked: str, g: dict[str, GlossaryTerm]) -> list[dict]:
     subset = select_glossary_subset(masked, _ListStore(g))
-    p = build_translation_prompt(masked, subset, [], PROMPT_VERSION)
-    req = LLMRequest(messages=p["messages"], model_alias=alias, data_class=data_class, job_id=run_id,
-                     target_id=case.id, prompt_version=PROMPT_VERSION,
-                     source_hash=hashlib.sha256(masked.encode()).hexdigest())
-    return req, mapping
+    return build_translation_prompt(masked, subset, [], PROMPT_VERSION)["messages"]
+
+
+def _request(masked: str, messages: list[dict], case_id: str, run_id: str, data_class: str, alias: str) -> LLMRequest:
+    return LLMRequest(messages=messages, model_alias=alias, data_class=data_class, job_id=run_id, target_id=case_id,
+                      prompt_version=PROMPT_VERSION, source_hash=hashlib.sha256(masked.encode()).hexdigest())
 
 
 def mask_reference(ref: str, mapping: dict[str, str]) -> str:
@@ -50,6 +60,15 @@ def mask_reference(ref: str, mapping: dict[str, str]) -> str:
     for ph, val in sorted(mapping.items(), key=lambda kv: -len(kv[1])):
         ref = ref.replace(val, ph, 1)
     return ref
+
+
+def strip_signal(reference: str, source: str) -> str:
+    """The model only translates the body, so a reference's leading fixed VI signal word is not part of its answer."""
+    prefix = prepare(source, load_patterns(), load_signal_table()).prefix
+    if not prefix:
+        return reference
+    word = re.escape(unicodedata.normalize("NFC", prefix).rstrip(": \n"))
+    return re.sub(rf"^\s*{word}\s*[:\n]?\s*", "", unicodedata.normalize("NFC", reference), count=1, flags=re.I)
 
 
 def make_recorded_fixture(cases: list[EvalCase], g: dict[str, GlossaryTerm], path: Path | str,
@@ -62,7 +81,7 @@ def make_recorded_fixture(cases: list[EvalCase], g: dict[str, GlossaryTerm], pat
             if not c.reference_vi:
                 continue
             req, mapping = build_request(c, g, "fixture", data_class=data_class, alias=alias)
-            text = mask_reference(c.reference_vi, mapping)
+            text = mask_reference(strip_signal(c.reference_vi, c.source), mapping)
             f.write(json.dumps({"key": cache_key(req, RECORDED_MODEL_ID), "text": text, "tokens_in": 0,
                                 "tokens_out": 0}, ensure_ascii=False) + "\n")
             n += 1
@@ -87,17 +106,32 @@ def make_gateway(model: str, run_dir: Path, *, fixture: Optional[Path] = None, a
 
 def run_cases(cases: list[EvalCase], g: dict[str, GlossaryTerm], gateway: Gateway, run_id: str, *,
               data_class: str = "customer", alias: str = "bulk") -> dict[str, Output]:
+    """Same guarded path as the pipeline (src/guard/segment.run_guarded): signal split, mask, call, re-attach, QA
+    with script guard, fix loop (max 2). Output.output is the FINAL accepted text ("" when it must not be shipped)."""
+    patterns, table = load_patterns(), load_signal_table()
     outs: dict[str, Output] = {}
     for c in cases:
-        req, mapping = build_request(c, g, run_id, data_class=data_class, alias=alias)
-        try:
-            res = gateway.complete(req)   # DataClassViolation / budget errors propagate: they stop the run
+        def complete(stage: str, messages: list[dict], c=c) -> dict:
+            masked = next(m["content"] for m in messages if m["role"] == "user")
+            masked = prep_masked[c.id]
+            res = gateway.complete(_request(masked, messages, c.id, run_id, data_class, alias))
+            return {"text": res.text, "tokens_in": res.tokens_in, "tokens_out": res.tokens_out,
+                    "cost_usd": res.cost_usd, "cache_hit": res.cache_hit}
+
+        prep_masked = {c.id: prepare(c.source, patterns, table).masked}
+        try:   # DataClassViolation / budget errors propagate: they stop the run
+            r = run_guarded(c.source, patterns=patterns, table=table,
+                            build_messages=lambda masked: _messages(masked, g), complete=complete)
         except RecordedMiss as e:
-            outs[c.id] = Output(id=c.id, mapping=mapping, error=f"RecordedMiss: {e}")
+            outs[c.id] = Output(id=c.id, mapping=prepare(c.source, patterns, table).mapping,
+                                error=f"RecordedMiss: {e}")
             continue
-        outs[c.id] = Output(id=c.id, output=unmask(res.text, mapping), masked_output=res.text, mapping=mapping,
-                            tokens_in=res.tokens_in, tokens_out=res.tokens_out, cost_usd=res.cost_usd,
-                            cache_hit=res.cache_hit)
+        outs[c.id] = Output(
+            id=c.id, output=r.text, masked_output=r.prep.prefix + r.raw, mapping=r.prep.mapping,
+            tokens_in=sum(x["tokens_in"] for x in r.calls), tokens_out=sum(x["tokens_out"] for x in r.calls),
+            cost_usd=sum(x["cost_usd"] for x in r.calls), cache_hit=bool(r.calls) and all(x["cache_hit"] for x in r.calls),
+            attempts=r.attempts, repaired=r.repaired, routed_to_review=r.routed_to_review,
+            review_rules=sorted(set(r.rules)) if r.routed_to_review else [])
     return outs
 
 

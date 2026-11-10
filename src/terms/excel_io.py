@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from .store import STATUSES, TermRecord, TermStore, key_of, validate_record
 
-COLUMNS = ["term_en", "term_vi", "status", "citation", "confidence", "approved_by", "protected", "version"]
+COLUMNS = ["term_en", "term_vi", "status", "citation", "confidence", "approved_by", "protected", "version", "must_use_in_prompt"]
 
 
 class RowIssue(BaseModel):
@@ -48,11 +48,11 @@ def write_terms_xlsx(records: Iterable[TermRecord], path: Path) -> Path:
     ws.append(COLUMNS)
     for r in records:
         ws.append([_safe(v) for v in (r.term_en, r.term_vi, r.status, r.citation, r.confidence,
-                                      r.approved_by, "yes" if r.protected else "", r.version)])
+                                      r.approved_by, "yes" if r.protected else "", r.version, "yes" if r.must_use_in_prompt else "")])
         for c in ws[ws.max_row]:
             if isinstance(c.value, str):
                 c.data_type = "s"
-    for col, w in zip("ABCDEFGH", (32, 32, 12, 48, 11, 16, 10, 9)):
+    for col, w in zip("ABCDEFGHI", (32, 32, 12, 48, 11, 16, 10, 9, 14)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
     path = Path(path)
@@ -127,7 +127,8 @@ def import_terms_xlsx(store: TermStore, path: Path, reviewer: str = "") -> Impor
         rec = TermRecord(
             term_en=term_en, term_vi=_s(cell(row, "term_vi")), status=status, citation=_s(cell(row, "citation")),
             confidence=conf, approved_by=_s(cell(row, "approved_by")),
-            protected=_s(cell(row, "protected")).lower() in ("yes", "true", "1", "y", "x"))
+            protected=_s(cell(row, "protected")).lower() in ("yes", "true", "1", "y", "x"),
+            must_use_in_prompt=_s(cell(row, "must_use_in_prompt")).lower() in ("yes", "true", "1", "y", "x"))
         if rec.status == "approved" and not rec.approved_by:
             rec = rec.model_copy(update={"approved_by": reviewer})
         errs = validate_record(rec)
@@ -159,8 +160,9 @@ def import_terms_xlsx(store: TermStore, path: Path, reviewer: str = "") -> Impor
             continue
         seen.add(rec.key)
         old = cur.get(rec.key)
-        if old and (old.term_vi, old.status, old.citation, old.confidence, old.approved_by, old.protected) == (
-                rec.term_vi, rec.status, rec.citation, rec.confidence, rec.approved_by, rec.protected):
+        if old and (old.term_vi, old.status, old.citation, old.confidence, old.approved_by, old.protected, old.must_use_in_prompt) == (
+                rec.term_vi, rec.status, rec.citation, rec.confidence, rec.approved_by, rec.protected,
+                rec.must_use_in_prompt):
             unchanged += 1
             continue
         sv = _s(cell(rows[n - 1], "version"))

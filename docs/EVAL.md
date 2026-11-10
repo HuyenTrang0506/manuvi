@@ -150,3 +150,33 @@ safety; blocking issues; verdict) and the call wrapper.
 sheet) lists 66 electrical terms with a proposed Vietnamese term, `status=proposed`, and empty `reviewer_decision`,
 `reviewer_vi`, `reviewer_comment` columns. The founder/uncle decide; approved terms enter the term store through the
 existing import (needs citation and approver). Nothing in this harness marks a term approved.
+
+## First real-model run (2026-11-09, `ollama:qwen2.5:7b`, Apple M1)
+
+Run before the signal-word split and the script guard existed. 55 cases, cost $0.
+
+| Metric | Kind | Value |
+|---|---|---|
+| protected_codes | hard | 97.3% |
+| number_unit | hard | 95.5% |
+| safety_signals | hard | 83.3% (n = 6) |
+| glossary_hit | soft | 94.4% |
+| length_ratio | soft | 98.2% |
+| leakage | soft | 0.3% |
+| placeholder_roundtrip | soft | 96.2% |
+
+**Not release quality.** Both hard failures were p0 safety cases:
+
+- `EL-004`: Chinese text appended after the translation and the `24 V` placeholder dropped.
+- `EL-005`: `CAUTION` rendered as a wrong signal word, and "tighten" rendered as "quấn chặt".
+
+What changed because of this run:
+
+1. Signal words are split off before the model call and re-attached from `config/signal_words.yaml` (proposed table).
+2. Output containing foreign scripts fails the guard, enters the fix loop (max 2) and is otherwise routed to review.
+   Failed output is never shipped.
+3. `manuvi eval` runs the same guard path as the pipeline and reports repaired and routed cases separately.
+4. Glossary entries may set `must_use_in_prompt` (for example tighten -> siết).
+
+Policy: a 7B local model is for plumbing tests only. **p0 cases (safety, warnings) must run on the `strong` alias.**
+The electrical chapter of the Kobelco SK70SR-1ES manual is Section 43 (founder, 2026-11-10); real-manual checks start there.

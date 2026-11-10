@@ -26,11 +26,12 @@ def select_glossary_subset(source_text: str, store: TermStore, max_terms: int = 
     """Approved, non-protected terms present in the text. Longest match first; shorter terms inside an
     already matched longer term are not selected separately."""
     terms = [r for r in store.approved() if not r.protected and not _is_protected_code(r.term_en)]
-    terms.sort(key=lambda r: (-len(r.term_en), r.key))
+    terms.sort(key=lambda r: (not r.must_use_in_prompt, -len(r.term_en), r.key))   # must-use first, then longest
     taken: list[tuple[int, int]] = []
     out: list[TermRecord] = []
     for r in terms:
-        pat = re.compile(r"(?<![\w])" + r"\s+".join(map(re.escape, r.term_en.split())) + r"(?![\w])", re.I)
+        forms = r"(?:s|es|ed|ing)?" if r.must_use_in_prompt else ""   # tighten / tightened / tightening
+        pat = re.compile(r"(?<![\w])" + r"\s+".join(map(re.escape, r.term_en.split())) + forms + r"(?![\w])", re.I)
         hit = False
         for m in pat.finditer(source_text):
             if not any(a < m.end() and m.start() < b for a, b in taken):
@@ -38,7 +39,7 @@ def select_glossary_subset(source_text: str, store: TermStore, max_terms: int = 
                 hit = True
         if hit:
             out.append(r)
-            if len(out) >= max_terms:
+            if len([x for x in out if not x.must_use_in_prompt]) >= max_terms:
                 break
     return out
 
@@ -87,8 +88,13 @@ def build_translation_prompt(chunk: str, subset: list[TermRecord], tm_hits: list
                              prompt_version: str) -> dict:
     """OpenAI-style request payload parts: {'prompt_version', 'messages'}."""
     system = f"{SYSTEM_RULES}\n\n[prompt_version: {prompt_version}]"
-    if subset:
-        system += "\n\nGlossary (EN => VI):\n" + "\n".join(f"- {r.term_en} => {r.term_vi}" for r in subset)
+    must = [r for r in subset if r.must_use_in_prompt]
+    if must:
+        system += ("\n\nMUST use these exact Vietnamese terms (do not use any other word for them):\n"
+                   + "\n".join(f"- {r.term_en} => {r.term_vi}" for r in must))
+    rest = [r for r in subset if not r.must_use_in_prompt]
+    if rest:
+        system += "\n\nGlossary (EN => VI):\n" + "\n".join(f"- {r.term_en} => {r.term_vi}" for r in rest)
     if tm_hits:
         system += "\n\nSimilar approved translations (reuse wording where the source matches):\n" + "\n".join(
             f"- [{h.score:.2f}] {h.source} => {h.target}" for h in tm_hits)
