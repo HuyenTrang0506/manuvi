@@ -9,6 +9,7 @@ from typing import Callable
 from .masking import PatternSpec, check_placeholders, load_patterns, mask, unmask
 from .models import FixResult, Issue, Severity
 from .numbers import diff_numbers
+from .script import script_issues
 from .signal_words import load_signal_table, signal_mismatches
 
 MAX_FIX_ATTEMPTS = 2
@@ -63,6 +64,8 @@ def qa_check(source: str, target: str, ctx: QAContext | None = None) -> list[Iss
         issues.append(Issue(rule_id="SIG001", severity=Severity.error,
                             message=f"signal word {en}: source x{sc}, target '{vi}' x{tc}",
                             fix_hint=f"Use exactly '{vi}' for {en}.", detail={"en": en, "vi": vi}))
+
+    issues.extend(script_issues(source, target))
 
     if not issues:
         issues.append(Issue(rule_id="OK", severity=Severity.ok, message="all deterministic checks passed"))
