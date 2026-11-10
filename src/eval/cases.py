@@ -100,6 +100,7 @@ class GlossaryTerm(BaseModel):
     domain: str = "electrical"
     forbidden_vi: list[str] = []
     note: str = ""
+    must_use_in_prompt: bool = False   # inject into the prompt whenever the term occurs (verbs, key nouns)
 
 
 def load_glossary(path: Path | str = DEFAULT_GLOSSARY) -> dict[str, GlossaryTerm]:
@@ -112,7 +113,8 @@ def load_glossary(path: Path | str = DEFAULT_GLOSSARY) -> dict[str, GlossaryTerm
                              status=row.get("status", "proposed") or "proposed",
                              domain=row.get("domain", "electrical") or "electrical",
                              forbidden_vi=[nfc(x.strip()) for x in (row.get("forbidden_vi") or "").split("|") if x.strip()],
-                             note=row.get("note", ""))
+                             note=row.get("note", ""),
+                             must_use_in_prompt=(row.get("must_use_in_prompt") or "").strip().lower() in ("yes", "true", "1", "y", "x"))
             out[" ".join(t.term_en.split()).casefold()] = t
     return out
 

@@ -25,6 +25,10 @@ class Output(BaseModel):
     cost_usd: float = 0.0
     cache_hit: bool = False
     error: str = ""
+    attempts: int = 0                      # fix-loop repairs used (0..2)
+    repaired: bool = False                 # failed the guard first, passed after the fix loop
+    routed_to_review: bool = False         # still failing after the loop: NOT accepted, reported apart
+    review_rules: list[str] = []           # guard rules still failing when routed
 
 
 def score_case(case: EvalCase, out: Output, glossary: dict[str, GlossaryTerm]) -> dict[str, M.MetricResult]:
@@ -45,7 +49,8 @@ def _aggregate(rows: list[dict]) -> dict[str, dict]:
     agg: dict[str, dict] = {}
     for name in (*M.HARD, *M.SOFT):
         kind = "hard" if name in M.HARD else "soft"
-        vals = [(r["metrics"][name]) for r in rows if r["metrics"][name]["score"] is not None]
+        vals = [(r["metrics"][name]) for r in rows
+                if r["metrics"][name]["score"] is not None and not r.get("routed_to_review")]
         if not vals:
             agg[name] = {"kind": kind, "value": None, "n": 0}
             continue
@@ -61,6 +66,19 @@ def _aggregate(rows: list[dict]) -> dict[str, dict]:
     return agg
 
 
+def _review(rows: list[dict]) -> dict:
+    """Guard outcome per case. Hard metrics cover accepted outputs only; routed cases are listed here."""
+    by_rule: dict[str, int] = defaultdict(int)
+    for r in rows:
+        for rule in r["review_rules"]:
+            by_rule[rule] += 1
+    return {"n_cases": len(rows),
+            "repaired": sum(r["repaired"] for r in rows), "repaired_ids": [r["id"] for r in rows if r["repaired"]],
+            "routed_to_review": sum(r["routed_to_review"] for r in rows),
+            "routed_ids": [r["id"] for r in rows if r["routed_to_review"]],
+            "by_rule": dict(sorted(by_rule.items()))}
+
+
 def build_report(cases: list[EvalCase], outputs: dict[str, Output], glossary: dict[str, GlossaryTerm], *,
                  model: str = "", meta: Optional[dict] = None) -> dict:
     rows = []
@@ -70,9 +88,12 @@ def build_report(cases: list[EvalCase], outputs: dict[str, Output], glossary: di
         m = {k: {"score": None if v.score is None else round(v.score, 6), "passed": v.passed, "detail": v.detail}
              for k, v in res.items()}
         rows.append({"id": c.id, "domains": c.domains, "priority": c.priority, "severity": c.severity,
-                     "hard_pass": all(m[h]["passed"] is not False for h in M.HARD), "error": out.error,
-                     "metrics": m})
-    cons = M.consistency(cases, {i: o.output for i, o in outputs.items()}, glossary)
+                     # a routed-to-review case is neither pass nor fail of the hard metrics: it is not accepted
+                     "hard_pass": None if out.routed_to_review else all(m[h]["passed"] is not False for h in M.HARD),
+                     "error": out.error, "repaired": out.repaired, "attempts": out.attempts,
+                     "routed_to_review": out.routed_to_review, "review_rules": out.review_rules, "metrics": m})
+    accepted = {i: o for i, o in outputs.items() if not o.routed_to_review}
+    cons = M.consistency(cases, {i: o.output for i, o in accepted.items()}, glossary)
 
     def group(key_fn) -> dict:
         buckets: dict[str, list[dict]] = defaultdict(list)
@@ -83,6 +104,8 @@ def build_report(cases: list[EvalCase], outputs: dict[str, Output], glossary: di
 
     by_term: dict[str, dict] = {}
     for r in rows:
+        if r["routed_to_review"]:
+            continue
         d = r["metrics"]["glossary_hit"]["detail"]
         for t in d.get("hits", []):
             by_term.setdefault(t, {"hit": 0, "total": 0})["hit"] += 1
@@ -108,7 +131,7 @@ def build_report(cases: list[EvalCase], outputs: dict[str, Output], glossary: di
         "glossary": {"sha256": glossary_hash(glossary), "n_terms": len(glossary),
                      "status": "PROPOSED terms, not approved by founder/uncle"},
         "meta": meta or {},
-        "metrics": _aggregate(rows), "consistency": cons,
+        "metrics": _aggregate(rows), "consistency": cons, "review": _review(rows),
         "domains": group(lambda c: c.domains), "priorities": group(lambda c: [c.priority]),
         "terms": dict(sorted(by_term.items())), "cost": cost, "cases": rows,
     }
@@ -161,7 +184,10 @@ def gate(current: dict, baseline: dict, soft_tolerance_pct: float = DEFAULT_SOFT
         fails.append(f"overall: soft metric consistency {b_cons:.4f} -> {c_cons:.4f}")
     base_pass = {r["id"]: r["hard_pass"] for r in baseline["cases"]}
     for r in current["cases"]:
-        if base_pass.get(r["id"]) and not r["hard_pass"]:
+        if base_pass.get(r["id"]) and r.get("routed_to_review"):
+            fails.append(f"case {r['id']} ({r['priority']}) newly routed to review "
+                         f"({', '.join(r['review_rules']) or 'guard'}): not accepted")
+        elif base_pass.get(r["id"]) and r["hard_pass"] is False:
             bad = [h for h in M.HARD if r["metrics"][h]["passed"] is False]
             fails.append(f"case {r['id']} ({r['priority']}) newly fails hard metric(s): {', '.join(bad)}")
     return GateResult(ok=not fails, failures=fails, warnings=warns)
@@ -197,7 +223,18 @@ def render_markdown(rep: dict, gate_result: Optional[GateResult] = None) -> str:
     if worst:
         L += ["## Glossary terms with misses (proposed VI terms)", "", "| term | hit | total |", "|---|---|---|"]
         L += [f"| {k} | {v['hit']} | {v['total']} |" for _, k, v in worst] + [""]
-    failing = [r for r in rep["cases"] if not r["hard_pass"]]
+    rv = rep.get("review") or {}
+    L += ["## Guard and fix loop", "",
+          "Hard metrics above are computed on the FINAL ACCEPTED output (after the guard + fix loop shared with the "
+          "pipeline). Cases routed to review are not accepted and are excluded from those denominators; they are "
+          "listed here, never counted as a pass.", "",
+          f"- Repaired by the fix loop: {rv.get('repaired', 0)}"
+          + (f" ({', '.join(rv['repaired_ids'])})" if rv.get("repaired_ids") else ""),
+          f"- Routed to review: {rv.get('routed_to_review', 0)} of {rv.get('n_cases', len(rep['cases']))}"
+          + (f" ({', '.join(rv['routed_ids'][:30])}{' ...' if len(rv['routed_ids']) > 30 else ''})"
+             if rv.get("routed_ids") else ""),
+          ] + ([f"- Failing rules: {rv['by_rule']}"] if rv.get("by_rule") else []) + [""]
+    failing = [r for r in rep["cases"] if r["hard_pass"] is False]
     L += [f"## Cases failing a hard metric ({len(failing)})", ""]
     for r in failing[:50]:
         bad = [f"{h}: {json.dumps(r['metrics'][h]['detail'], ensure_ascii=False)}" for h in M.HARD
