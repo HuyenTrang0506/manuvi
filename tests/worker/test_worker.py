@@ -178,3 +178,4 @@ def test_priority_sections_are_processed_first_and_reported(tmp_path):
     assert list(st.sections)[0] == "43" and st.sections["43"]["pending"] == 0 and st.sections["23"]["chunks"] >= 1
     assert all("cost_usd" in v for v in st.sections.values())
     assert list(st.page_states)[0].startswith("43-")
+
