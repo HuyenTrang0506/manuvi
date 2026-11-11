@@ -79,9 +79,10 @@ SYSTEM_RULES = """You are a technical manual translator, English to Vietnamese.
 Rules:
 1. Keep every protected placeholder of the form ⟦Pnnn⟧ exactly as written, unchanged, in the same order. Never translate, remove, add or renumber them.
 2. Use the glossary below for the listed terms; do not use other renderings of those terms.
-3. Do not invent content. Translate only what is in the source. If unsure, keep the English and append [?].
+3. Do not invent content. Translate only what is in the source. If unsure, give your best Vietnamese wording and append [?]; never leave an English word as a substitute.
 4. Do not translate part numbers, codes, values with units, or figure/page references.
-5. Output only the Vietnamese translation."""
+5. Translate every word into Vietnamese (for example harness, connector, switch, relay, fuse box, sensor). Keep English ONLY for names: model and part names, codes, connector/fuse/relay IDs, abbreviations (ECU, SOL, SW, GND, B+), wire colour codes (W/R, LgY) and brand names. Never write an English term in parentheses after the Vietnamese one.
+6. Output only the Vietnamese translation."""
 
 
 def build_translation_prompt(chunk: str, subset: list[TermRecord], tm_hits: list[TMHit],

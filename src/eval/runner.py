@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -21,7 +22,7 @@ from src.terms.store import TermRecord
 from .cases import DEFAULT_GLOSSARY, DEFAULT_SET, EvalCase, GlossaryTerm, load_cases, load_glossary
 from .report import DEFAULT_SOFT_TOLERANCE_PCT, GateResult, Output, build_report, gate, render_markdown
 
-PROMPT_VERSION = "eval-v2"
+PROMPT_VERSION = "eval-v3"
 RECORDED_MODEL_ID = "eval-recorded"
 EVAL_ROOT = ROOT / "workspace" / "eval"   # workspace/ is gitignored: outputs of customer runs stay local
 
@@ -119,19 +120,20 @@ def run_cases(cases: list[EvalCase], g: dict[str, GlossaryTerm], gateway: Gatewa
                     "cost_usd": res.cost_usd, "cache_hit": res.cache_hit}
 
         prep_masked = {c.id: prepare(c.source, patterns, table).masked}
+        t0 = time.perf_counter()
         try:   # DataClassViolation / budget errors propagate: they stop the run
             r = run_guarded(c.source, patterns=patterns, table=table,
                             build_messages=lambda masked: _messages(masked, g), complete=complete)
         except RecordedMiss as e:
             outs[c.id] = Output(id=c.id, mapping=prepare(c.source, patterns, table).mapping,
-                                error=f"RecordedMiss: {e}")
+                                error=f"RecordedMiss: {e}", seconds=time.perf_counter() - t0)
             continue
         outs[c.id] = Output(
             id=c.id, output=r.text, masked_output=r.prep.prefix + r.raw, mapping=r.prep.mapping,
             tokens_in=sum(x["tokens_in"] for x in r.calls), tokens_out=sum(x["tokens_out"] for x in r.calls),
             cost_usd=sum(x["cost_usd"] for x in r.calls), cache_hit=bool(r.calls) and all(x["cache_hit"] for x in r.calls),
             attempts=r.attempts, repaired=r.repaired, routed_to_review=r.routed_to_review,
-            review_rules=sorted(set(r.rules)) if r.routed_to_review else [])
+            review_rules=sorted(set(r.rules)) if r.routed_to_review else [], seconds=time.perf_counter() - t0)
     return outs
 
 

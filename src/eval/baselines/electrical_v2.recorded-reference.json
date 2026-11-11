@@ -2,63 +2,122 @@
  "schema": 1,
  "model": "recorded",
  "set": {
-  "sha256": "34923e6af20dd0b06c03383654d00d25c523877bc19f05a9eb93f30ac05ffe09",
-  "n_cases": 55
+  "sha256": "63513b3222539caa83e7d2e400e08ede317418c91c35c7e3cc0a03b5134813a6",
+  "n_cases": 75
  },
  "glossary": {
-  "sha256": "bdecd64e6512b22ee24b7fa9de5b491e60251cb63a0bb722a0f6598e38d80b5e",
-  "n_terms": 66,
-  "status": "PROPOSED terms, not approved by founder/uncle"
+  "sha256": "a767e3c1f605d449a58fa7b7b115115f51eeca008deb2e045ed7307dc3304c18",
+  "n_terms": 75,
+  "status": "31 verified-usage, 38 proposed (usage-checked against Vietnamese sources, no workshop sign-off needed), 6 keep-English names"
  },
  "meta": {
   "run_id": "base",
-  "prompt_version": "eval-v1",
+  "prompt_version": "eval-v3",
   "data_class": "customer",
-  "created": "2026-11-09T13:53:26+00:00"
+  "created": "2026-11-11T10:43:45+00:00"
  },
  "metrics": {
   "protected_codes": {
    "kind": "hard",
    "value": 1.0,
-   "n": 37
+   "n": 47
   },
   "number_unit": {
    "kind": "hard",
    "value": 1.0,
-   "n": 22
+   "n": 26
   },
   "safety_signals": {
    "kind": "hard",
    "value": 1.0,
-   "n": 6
+   "n": 7
+  },
+  "kept_names": {
+   "kind": "hard",
+   "value": 1.0,
+   "n": 9
   },
   "glossary_hit": {
    "kind": "soft",
    "value": 1.0,
-   "n": 55
+   "n": 75
   },
   "length_ratio": {
    "kind": "soft",
    "value": 1.0,
-   "n": 55
+   "n": 75
   },
   "leakage": {
-   "kind": "soft",
+   "kind": "near-hard",
    "value": 0.0,
-   "n": 55
+   "n": 75
   },
   "placeholder_roundtrip": {
    "kind": "soft",
    "value": 1.0,
-   "n": 26
+   "n": 33
   }
  },
  "consistency": {
-  "terms_seen": 62,
+  "terms_seen": 73,
   "inconsistent": [],
+  "mixed_forms": [],
   "score": 1.0
  },
+ "review": {
+  "n_cases": 75,
+  "repaired": 0,
+  "repaired_ids": [],
+  "routed_to_review": 0,
+  "routed_ids": [],
+  "by_rule": {}
+ },
  "domains": {
+  "abbreviation": {
+   "n": 7,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 2
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "kept_names": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 7
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 7
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 7
+    },
+    "leakage": {
+     "kind": "near-hard",
+     "value": 0.0,
+     "n": 7
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 2
+    }
+   }
+  },
   "charging": {
    "n": 3,
    "metrics": {
@@ -77,6 +136,11 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -88,7 +152,7 @@
      "n": 3
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 3
     },
@@ -100,42 +164,47 @@
    }
   },
   "connector": {
-   "n": 3,
+   "n": 7,
    "metrics": {
     "protected_codes": {
      "kind": "hard",
      "value": 1.0,
-     "n": 3
+     "n": 7
     },
     "number_unit": {
      "kind": "hard",
-     "value": null,
-     "n": 0
+     "value": 1.0,
+     "n": 2
     },
     "safety_signals": {
      "kind": "hard",
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
-     "n": 3
+     "n": 7
     },
     "length_ratio": {
      "kind": "soft",
      "value": 1.0,
-     "n": 3
+     "n": 7
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
-     "n": 3
+     "n": 7
     },
     "placeholder_roundtrip": {
      "kind": "soft",
      "value": 1.0,
-     "n": 2
+     "n": 5
     }
    }
   },
@@ -157,6 +226,11 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -168,7 +242,7 @@
      "n": 2
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 2
     },
@@ -180,12 +254,12 @@
    }
   },
   "diagram_legend": {
-   "n": 4,
+   "n": 9,
    "metrics": {
     "protected_codes": {
      "kind": "hard",
      "value": 1.0,
-     "n": 3
+     "n": 4
     },
     "number_unit": {
      "kind": "hard",
@@ -197,20 +271,25 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 4
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
-     "n": 4
+     "n": 9
     },
     "length_ratio": {
      "kind": "soft",
      "value": 1.0,
-     "n": 4
+     "n": 9
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
-     "n": 4
+     "n": 9
     },
     "placeholder_roundtrip": {
      "kind": "soft",
@@ -220,59 +299,114 @@
    }
   },
   "electrical": {
-   "n": 55,
+   "n": 75,
    "metrics": {
     "protected_codes": {
      "kind": "hard",
      "value": 1.0,
-     "n": 37
+     "n": 47
     },
     "number_unit": {
      "kind": "hard",
      "value": 1.0,
-     "n": 22
+     "n": 26
     },
     "safety_signals": {
      "kind": "hard",
      "value": 1.0,
-     "n": 6
+     "n": 7
     },
-    "glossary_hit": {
-     "kind": "soft",
-     "value": 1.0,
-     "n": 55
-    },
-    "length_ratio": {
-     "kind": "soft",
-     "value": 1.0,
-     "n": 55
-    },
-    "leakage": {
-     "kind": "soft",
-     "value": 0.0,
-     "n": 55
-    },
-    "placeholder_roundtrip": {
-     "kind": "soft",
-     "value": 1.0,
-     "n": 26
-    }
-   }
-  },
-  "fuse_relay": {
-   "n": 9,
-   "metrics": {
-    "protected_codes": {
+    "kept_names": {
      "kind": "hard",
      "value": 1.0,
      "n": 9
     },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 75
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 75
+    },
+    "leakage": {
+     "kind": "near-hard",
+     "value": 0.0,
+     "n": 75
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 33
+    }
+   }
+  },
+  "fuse_relay": {
+   "n": 12,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 12
+    },
     "number_unit": {
      "kind": "hard",
      "value": 1.0,
-     "n": 6
+     "n": 8
     },
     "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 12
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 12
+    },
+    "leakage": {
+     "kind": "near-hard",
+     "value": 0.0,
+     "n": 12
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 8
+    }
+   }
+  },
+  "harness": {
+   "n": 7,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 5
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "kept_names": {
      "kind": "hard",
      "value": 1.0,
      "n": 1
@@ -280,27 +414,72 @@
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
-     "n": 9
+     "n": 7
     },
     "length_ratio": {
      "kind": "soft",
      "value": 1.0,
-     "n": 9
+     "n": 7
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
-     "n": 9
+     "n": 7
     },
     "placeholder_roundtrip": {
      "kind": "soft",
      "value": 1.0,
-     "n": 6
+     "n": 4
     }
    }
   },
-  "harness": {
+  "inspection": {
    "n": 4,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 4
+    },
+    "leakage": {
+     "kind": "near-hard",
+     "value": 0.0,
+     "n": 4
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": null,
+     "n": 0
+    }
+   }
+  },
+  "leakage_trap": {
+   "n": 7,
    "metrics": {
     "protected_codes": {
      "kind": "hard",
@@ -314,23 +493,28 @@
     },
     "safety_signals": {
      "kind": "hard",
-     "value": null,
-     "n": 0
+     "value": 1.0,
+     "n": 1
+    },
+    "kept_names": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
     },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
-     "n": 4
+     "n": 7
     },
     "length_ratio": {
      "kind": "soft",
      "value": 1.0,
-     "n": 4
+     "n": 7
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
-     "n": 4
+     "n": 7
     },
     "placeholder_roundtrip": {
      "kind": "soft",
@@ -339,7 +523,7 @@
     }
    }
   },
-  "inspection": {
+  "location": {
    "n": 2,
    "metrics": {
     "protected_codes": {
@@ -357,6 +541,11 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -368,7 +557,7 @@
      "n": 2
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 2
     },
@@ -397,6 +586,11 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -408,7 +602,7 @@
      "n": 10
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 10
     },
@@ -437,6 +631,11 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -448,7 +647,7 @@
      "n": 1
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 1
     },
@@ -477,6 +676,11 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -488,7 +692,7 @@
      "n": 4
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 4
     },
@@ -499,48 +703,98 @@
     }
    }
   },
-  "safety": {
-   "n": 6,
+  "pin_table": {
+   "n": 3,
    "metrics": {
     "protected_codes": {
      "kind": "hard",
      "value": 1.0,
-     "n": 4
+     "n": 3
     },
     "number_unit": {
      "kind": "hard",
      "value": 1.0,
-     "n": 3
+     "n": 2
     },
     "safety_signals": {
      "kind": "hard",
+     "value": null,
+     "n": 0
+    },
+    "kept_names": {
+     "kind": "hard",
      "value": 1.0,
-     "n": 6
+     "n": 2
     },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
-     "n": 6
+     "n": 3
     },
     "length_ratio": {
      "kind": "soft",
      "value": 1.0,
-     "n": 6
+     "n": 3
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
-     "n": 6
+     "n": 3
     },
     "placeholder_roundtrip": {
      "kind": "soft",
      "value": 1.0,
+     "n": 2
+    }
+   }
+  },
+  "safety": {
+   "n": 8,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 5
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
      "n": 4
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 7
+    },
+    "kept_names": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 8
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 8
+    },
+    "leakage": {
+     "kind": "near-hard",
+     "value": 0.0,
+     "n": 8
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 5
     }
    }
   },
   "sensor": {
-   "n": 7,
+   "n": 8,
    "metrics": {
     "protected_codes": {
      "kind": "hard",
@@ -557,20 +811,25 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
-     "n": 7
+     "n": 8
     },
     "length_ratio": {
      "kind": "soft",
      "value": 1.0,
-     "n": 7
+     "n": 8
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
-     "n": 7
+     "n": 8
     },
     "placeholder_roundtrip": {
      "kind": "soft",
@@ -597,6 +856,11 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -608,7 +872,7 @@
      "n": 1
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 1
     },
@@ -637,6 +901,11 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -648,7 +917,7 @@
      "n": 5
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 5
     },
@@ -677,6 +946,11 @@
      "value": 1.0,
      "n": 1
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -688,7 +962,7 @@
      "n": 3
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 3
     },
@@ -717,6 +991,11 @@
      "value": null,
      "n": 0
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": null,
+     "n": 0
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
@@ -728,7 +1007,7 @@
      "n": 3
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
      "n": 3
     },
@@ -740,12 +1019,12 @@
    }
   },
   "wire_color": {
-   "n": 6,
+   "n": 9,
    "metrics": {
     "protected_codes": {
      "kind": "hard",
      "value": 1.0,
-     "n": 2
+     "n": 3
     },
     "number_unit": {
      "kind": "hard",
@@ -757,84 +1036,144 @@
      "value": 1.0,
      "n": 1
     },
+    "kept_names": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 3
+    },
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
-     "n": 6
+     "n": 9
     },
     "length_ratio": {
      "kind": "soft",
      "value": 1.0,
-     "n": 6
+     "n": 9
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
-     "n": 6
+     "n": 9
     },
     "placeholder_roundtrip": {
      "kind": "soft",
      "value": 1.0,
-     "n": 1
+     "n": 2
     }
    }
   }
  },
  "priorities": {
   "p0": {
+   "n": 20,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 13
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 10
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 5
+    },
+    "kept_names": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 20
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 20
+    },
+    "leakage": {
+     "kind": "near-hard",
+     "value": 0.0,
+     "n": 20
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 12
+    }
+   }
+  },
+  "p1": {
+   "n": 39,
+   "metrics": {
+    "protected_codes": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 28
+    },
+    "number_unit": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 13
+    },
+    "safety_signals": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 1
+    },
+    "kept_names": {
+     "kind": "hard",
+     "value": 1.0,
+     "n": 7
+    },
+    "glossary_hit": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 39
+    },
+    "length_ratio": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 39
+    },
+    "leakage": {
+     "kind": "near-hard",
+     "value": 0.0,
+     "n": 39
+    },
+    "placeholder_roundtrip": {
+     "kind": "soft",
+     "value": 1.0,
+     "n": 19
+    }
+   }
+  },
+  "p2": {
    "n": 16,
    "metrics": {
     "protected_codes": {
      "kind": "hard",
      "value": 1.0,
-     "n": 10
+     "n": 6
     },
     "number_unit": {
      "kind": "hard",
      "value": 1.0,
-     "n": 8
+     "n": 3
     },
     "safety_signals": {
      "kind": "hard",
      "value": 1.0,
-     "n": 4
+     "n": 1
     },
-    "glossary_hit": {
-     "kind": "soft",
-     "value": 1.0,
-     "n": 16
-    },
-    "length_ratio": {
-     "kind": "soft",
-     "value": 1.0,
-     "n": 16
-    },
-    "leakage": {
-     "kind": "soft",
-     "value": 0.0,
-     "n": 16
-    },
-    "placeholder_roundtrip": {
-     "kind": "soft",
-     "value": 1.0,
-     "n": 9
-    }
-   }
-  },
-  "p1": {
-   "n": 26,
-   "metrics": {
-    "protected_codes": {
-     "kind": "hard",
-     "value": 1.0,
-     "n": 22
-    },
-    "number_unit": {
-     "kind": "hard",
-     "value": 1.0,
-     "n": 12
-    },
-    "safety_signals": {
+    "kept_names": {
      "kind": "hard",
      "value": 1.0,
      "n": 1
@@ -842,57 +1181,17 @@
     "glossary_hit": {
      "kind": "soft",
      "value": 1.0,
-     "n": 26
+     "n": 16
     },
     "length_ratio": {
      "kind": "soft",
      "value": 1.0,
-     "n": 26
+     "n": 16
     },
     "leakage": {
-     "kind": "soft",
+     "kind": "near-hard",
      "value": 0.0,
-     "n": 26
-    },
-    "placeholder_roundtrip": {
-     "kind": "soft",
-     "value": 1.0,
-     "n": 15
-    }
-   }
-  },
-  "p2": {
-   "n": 13,
-   "metrics": {
-    "protected_codes": {
-     "kind": "hard",
-     "value": 1.0,
-     "n": 5
-    },
-    "number_unit": {
-     "kind": "hard",
-     "value": 1.0,
-     "n": 2
-    },
-    "safety_signals": {
-     "kind": "hard",
-     "value": 1.0,
-     "n": 1
-    },
-    "glossary_hit": {
-     "kind": "soft",
-     "value": 1.0,
-     "n": 13
-    },
-    "length_ratio": {
-     "kind": "soft",
-     "value": 1.0,
-     "n": 13
-    },
-    "leakage": {
-     "kind": "soft",
-     "value": 0.0,
-     "n": 13
+     "n": 16
     },
     "placeholder_roundtrip": {
      "kind": "soft",
@@ -904,28 +1203,28 @@
  },
  "terms": {
   "air conditioner": {
-   "hit": 1,
-   "total": 1
+   "hit": 2,
+   "total": 2
   },
   "alternator": {
    "hit": 2,
    "total": 2
   },
   "battery": {
-   "hit": 6,
-   "total": 6
+   "hit": 9,
+   "total": 9
   },
   "battery relay": {
-   "hit": 2,
-   "total": 2
+   "hit": 3,
+   "total": 3
   },
   "battery terminal": {
    "hit": 1,
    "total": 1
   },
   "black": {
-   "hit": 3,
-   "total": 3
+   "hit": 4,
+   "total": 4
   },
   "blue": {
    "hit": 1,
@@ -944,24 +1243,24 @@
    "total": 1
   },
   "circuit": {
-   "hit": 4,
-   "total": 4
+   "hit": 5,
+   "total": 5
   },
   "circuit breaker": {
    "hit": 1,
    "total": 1
   },
   "connector": {
-   "hit": 7,
-   "total": 7
+   "hit": 13,
+   "total": 13
   },
   "continuity": {
    "hit": 2,
    "total": 2
   },
   "controller": {
-   "hit": 5,
-   "total": 5
+   "hit": 6,
+   "total": 6
   },
   "coolant temperature sensor": {
    "hit": 1,
@@ -992,32 +1291,32 @@
    "total": 1
   },
   "fuse": {
-   "hit": 6,
-   "total": 6
+   "hit": 9,
+   "total": 9
   },
   "fuse box": {
-   "hit": 3,
-   "total": 3
+   "hit": 5,
+   "total": 5
   },
   "glow plug": {
    "hit": 1,
    "total": 1
   },
   "green": {
-   "hit": 1,
-   "total": 1
-  },
-  "ground": {
-   "hit": 4,
-   "total": 4
-  },
-  "harness": {
    "hit": 3,
    "total": 3
   },
+  "ground": {
+   "hit": 7,
+   "total": 7
+  },
+  "harness": {
+   "hit": 8,
+   "total": 8
+  },
   "horn": {
-   "hit": 2,
-   "total": 2
+   "hit": 5,
+   "total": 5
   },
   "hydraulic oil temperature sensor": {
    "hit": 1,
@@ -1028,16 +1327,16 @@
    "total": 1
   },
   "joint connector": {
-   "hit": 1,
-   "total": 1
-  },
-  "key switch": {
-   "hit": 5,
-   "total": 5
-  },
-  "legend": {
    "hit": 2,
    "total": 2
+  },
+  "key switch": {
+   "hit": 7,
+   "total": 7
+  },
+  "legend": {
+   "hit": 4,
+   "total": 4
   },
   "monitor": {
    "hit": 3,
@@ -1060,8 +1359,8 @@
    "total": 2
   },
   "pressure switch": {
-   "hit": 2,
-   "total": 2
+   "hit": 3,
+   "total": 3
   },
   "proportional solenoid valve": {
    "hit": 1,
@@ -1072,22 +1371,34 @@
    "total": 1
   },
   "red": {
-   "hit": 1,
-   "total": 1
+   "hit": 2,
+   "total": 2
   },
   "relay": {
-   "hit": 6,
-   "total": 6
+   "hit": 9,
+   "total": 9
+  },
+  "relay box": {
+   "hit": 3,
+   "total": 3
   },
   "resistance": {
    "hit": 5,
    "total": 5
+  },
+  "sensor": {
+   "hit": 2,
+   "total": 2
   },
   "short circuit": {
    "hit": 2,
    "total": 2
   },
   "solenoid": {
+   "hit": 2,
+   "total": 2
+  },
+  "solenoid valve": {
    "hit": 1,
    "total": 1
   },
@@ -1096,12 +1407,12 @@
    "total": 4
   },
   "starter relay": {
-   "hit": 2,
-   "total": 2
+   "hit": 3,
+   "total": 3
   },
   "switch": {
-   "hit": 2,
-   "total": 2
+   "hit": 5,
+   "total": 5
   },
   "terminal": {
    "hit": 6,
@@ -1124,16 +1435,16 @@
    "total": 5
   },
   "white": {
-   "hit": 2,
-   "total": 2
+   "hit": 3,
+   "total": 3
   },
   "wiper motor": {
    "hit": 1,
    "total": 1
   },
   "wire": {
-   "hit": 7,
-   "total": 7
+   "hit": 10,
+   "total": 10
   },
   "wiring": {
    "hit": 2,
@@ -1144,12 +1455,12 @@
    "total": 1
   },
   "work light": {
-   "hit": 1,
-   "total": 1
+   "hit": 3,
+   "total": 3
   },
   "yellow": {
-   "hit": 1,
-   "total": 1
+   "hit": 3,
+   "total": 3
   }
  },
  "cost": {
@@ -1157,7 +1468,7 @@
   "tokens_in": 0,
   "tokens_out": 0,
   "cache_hits": 0,
-  "pages": 14,
+  "pages": 19,
   "cost_per_page_usd": 0.0,
   "by_page": {
    "1": 0.0,
@@ -1173,8 +1484,21 @@
    "11": 0.0,
    "12": 0.0,
    "13": 0.0,
-   "14": 0.0
+   "14": 0.0,
+   "15": 0.0,
+   "16": 0.0,
+   "17": 0.0,
+   "18": 0.0,
+   "19": 0.0
   }
+ },
+ "timing": {
+  "total_seconds": 0.302,
+  "seconds_per_segment": 0.004
+ },
+ "leakage": {
+  "overall_limit": 0.005,
+  "cases": {}
  },
  "cases": [
   {
@@ -1187,6 +1511,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -1203,6 +1531,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1212,7 +1545,8 @@
        "charge lamp"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -1251,6 +1585,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -1267,6 +1605,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1277,7 +1620,8 @@
        "battery"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -1316,6 +1660,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -1335,6 +1683,11 @@
       "unexpected": []
      }
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1345,7 +1698,8 @@
        "short circuit"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -1384,6 +1738,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -1410,6 +1768,11 @@
       "unexpected": []
      }
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1420,7 +1783,8 @@
        "terminal"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -1465,6 +1829,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -1491,6 +1859,11 @@
       "unexpected": []
      }
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1499,7 +1872,8 @@
        "battery terminal"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -1543,6 +1917,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -1562,6 +1940,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1571,14 +1954,15 @@
        "controller"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.833,
+      "ratio": 0.854,
       "band": [
        0.6,
        1.9
@@ -1611,6 +1995,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -1630,6 +2018,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1639,14 +2032,15 @@
        "resistance"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.724,
+      "ratio": 0.736,
       "band": [
        0.6,
        1.9
@@ -1683,6 +2077,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -1706,6 +2104,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1714,7 +2117,8 @@
        "resistance"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -1758,6 +2162,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -1781,6 +2189,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1789,7 +2202,8 @@
        "fuse"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -1833,6 +2247,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -1856,6 +2274,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1866,7 +2289,8 @@
        "circuit"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -1910,6 +2334,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -1933,6 +2361,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -1943,7 +2376,8 @@
        "short circuit"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -1987,6 +2421,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -2006,6 +2444,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2016,7 +2459,8 @@
        "circuit"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2056,6 +2500,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -2079,6 +2527,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2090,7 +2543,8 @@
        "multimeter"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2130,6 +2584,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -2146,6 +2604,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2158,7 +2621,8 @@
        "yellow"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2197,6 +2661,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -2216,6 +2684,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2228,14 +2701,15 @@
        "terminal"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.849,
+      "ratio": 0.836,
       "band": [
        0.6,
        1.9
@@ -2268,6 +2742,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -2287,6 +2765,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2297,14 +2780,15 @@
        "connector"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.964,
+      "ratio": 0.982,
       "band": [
        0.6,
        1.9
@@ -2341,6 +2825,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -2357,6 +2845,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2368,7 +2861,8 @@
        "pressure switch"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2407,6 +2901,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -2423,6 +2921,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2433,7 +2936,8 @@
        "horn"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2472,6 +2976,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -2491,6 +2999,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2501,7 +3014,8 @@
        "starter"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2546,6 +3060,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -2562,6 +3080,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2572,14 +3095,15 @@
        "terminal"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 1.119,
+      "ratio": 1.131,
       "band": [
        0.6,
        1.9
@@ -2612,6 +3136,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -2635,6 +3163,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2645,7 +3178,8 @@
        "voltage"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2689,6 +3223,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -2712,6 +3250,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2720,7 +3263,8 @@
        "battery"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2764,6 +3308,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -2780,6 +3328,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2790,7 +3343,8 @@
        "key switch"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2830,6 +3384,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -2846,6 +3404,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2856,7 +3419,8 @@
        "battery relay"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2895,6 +3459,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -2911,6 +3479,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2920,7 +3493,8 @@
        "key switch"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -2960,6 +3534,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -2983,6 +3561,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -2992,7 +3575,8 @@
        "resistance"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3037,6 +3621,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -3053,6 +3641,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3063,7 +3656,8 @@
        "engine speed sensor"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3103,6 +3697,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -3126,6 +3724,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3135,7 +3738,8 @@
        "pressure sensor"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3179,6 +3783,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -3202,6 +3810,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3210,7 +3823,8 @@
        "pressure switch"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3254,6 +3868,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -3277,6 +3895,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3285,7 +3908,8 @@
        "engine oil pressure switch"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3330,6 +3954,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -3353,6 +3981,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3362,7 +3995,8 @@
        "resistance"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3406,6 +4040,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -3422,6 +4060,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3431,7 +4074,8 @@
        "monitor"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3471,6 +4115,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -3490,6 +4138,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3500,7 +4153,8 @@
        "monitor"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3539,6 +4193,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -3555,6 +4213,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3564,7 +4227,8 @@
        "buzzer"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3603,6 +4267,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -3619,6 +4287,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3628,7 +4301,8 @@
        "switch"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3667,6 +4341,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -3683,6 +4361,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3692,7 +4375,8 @@
        "resistance"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3731,6 +4415,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -3754,6 +4442,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3763,7 +4456,8 @@
        "current"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3807,6 +4501,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -3830,6 +4528,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3838,7 +4541,8 @@
        "fuse box"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3883,6 +4587,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -3906,6 +4614,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3915,7 +4628,8 @@
        "tightening torque"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -3959,6 +4673,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -3978,6 +4696,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -3990,7 +4713,8 @@
        "starter"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -4029,6 +4753,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4048,6 +4776,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4061,7 +4794,8 @@
        "relay"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -4100,6 +4834,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4119,6 +4857,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4128,14 +4871,15 @@
        "wiring diagram"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.892,
+      "ratio": 0.916,
       "band": [
        0.6,
        1.9
@@ -4172,6 +4916,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4198,6 +4946,11 @@
       "unexpected": []
      }
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4208,7 +4961,8 @@
        "voltage"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -4253,6 +5007,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -4272,6 +5030,11 @@
       "unexpected": []
      }
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4280,7 +5043,8 @@
        "wire"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -4320,6 +5084,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4342,6 +5110,11 @@
       "unexpected": []
      }
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4350,7 +5123,8 @@
        "relay"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -4394,6 +5168,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -4410,6 +5188,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4419,14 +5202,15 @@
        "controller"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.913,
+      "ratio": 0.891,
       "band": [
        0.6,
        1.9
@@ -4459,6 +5243,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4478,6 +5266,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4489,14 +5282,15 @@
        "open circuit"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.887,
+      "ratio": 0.896,
       "band": [
        0.6,
        1.9
@@ -4533,6 +5327,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4556,6 +5354,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4567,7 +5370,8 @@
        "relay"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -4611,6 +5415,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4634,6 +5442,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4644,14 +5457,15 @@
        "ground"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.987,
+      "ratio": 0.975,
       "band": [
        0.6,
        1.9
@@ -4689,6 +5503,10 @@
    "severity": "critical",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4708,6 +5526,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4721,7 +5544,8 @@
        "fuse"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -4760,6 +5584,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4783,6 +5611,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4792,7 +5625,8 @@
        "monitor"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -4831,6 +5665,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": null,
@@ -4847,6 +5685,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4856,14 +5699,15 @@
        "connector"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.855,
+      "ratio": 0.87,
       "band": [
        0.6,
        1.9
@@ -4895,6 +5739,10 @@
    "severity": "major",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4918,6 +5766,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -4926,7 +5779,8 @@
        "circuit breaker"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -4970,6 +5824,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -4989,6 +5847,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -5000,7 +5863,8 @@
        "circuit"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
@@ -5039,6 +5903,10 @@
    "severity": "minor",
    "hard_pass": true,
    "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
    "metrics": {
     "protected_codes": {
      "score": 1.0,
@@ -5058,6 +5926,11 @@
      "passed": null,
      "detail": {}
     },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
     "glossary_hit": {
      "score": 1.0,
      "passed": true,
@@ -5067,14 +5940,1640 @@
        "joint connector"
       ],
       "misses": [],
-      "forbidden": []
+      "forbidden": [],
+      "variant_hits": []
      }
     },
     "length_ratio": {
      "score": 1.0,
      "passed": true,
      "detail": {
-      "ratio": 0.951,
+      "ratio": 0.967,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-056",
+   "domains": [
+    "electrical",
+    "diagram_legend",
+    "abbreviation"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "solenoid",
+       "switch",
+       "battery"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.131,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-057",
+   "domains": [
+    "electrical",
+    "diagram_legend",
+    "abbreviation"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "ground",
+       "battery",
+       "key switch"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.958,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-058",
+   "domains": [
+    "electrical",
+    "diagram_legend",
+    "abbreviation"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "legend",
+       "key switch",
+       "horn",
+       "solenoid valve",
+       "fuse",
+       "relay"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.012,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-059",
+   "domains": [
+    "electrical",
+    "diagram_legend",
+    "leakage_trap"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "legend",
+       "harness",
+       "connector",
+       "switch",
+       "relay box"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.14,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-060",
+   "domains": [
+    "electrical",
+    "connector",
+    "pin_table",
+    "abbreviation"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "connector",
+       "battery"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.082,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-061",
+   "domains": [
+    "electrical",
+    "connector",
+    "pin_table",
+    "abbreviation"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "sensor",
+       "ground"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.143,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-062",
+   "domains": [
+    "electrical",
+    "connector",
+    "pin_table"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "joint connector"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.217,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-063",
+   "domains": [
+    "electrical",
+    "fuse_relay"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "fuse",
+       "horn",
+       "work light",
+       "air conditioner"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.027,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-064",
+   "domains": [
+    "electrical",
+    "fuse_relay"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "relay",
+       "starter relay",
+       "work light",
+       "horn"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.123,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-065",
+   "domains": [
+    "electrical",
+    "fuse_relay",
+    "safety"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": [],
+      "decimal_separator_changed": []
+     }
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "fuse",
+       "battery relay",
+       "circuit"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.025,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-066",
+   "domains": [
+    "electrical",
+    "wire_color",
+    "diagram_legend"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "wire",
+       "white",
+       "red",
+       "black",
+       "green",
+       "yellow"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.771,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-067",
+   "domains": [
+    "electrical",
+    "wire_color",
+    "connector"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "wire"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.942,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-068",
+   "domains": [
+    "electrical",
+    "wire_color",
+    "harness",
+    "abbreviation"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "harness",
+       "wire",
+       "green",
+       "yellow"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.962,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-069",
+   "domains": [
+    "electrical",
+    "harness",
+    "leakage_trap"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "harness",
+       "controller",
+       "fuse box"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.984,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-070",
+   "domains": [
+    "electrical",
+    "harness",
+    "leakage_trap"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "extra": []
+     }
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "harness",
+       "connector"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.969,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "dropped": [],
+      "duplicated": [],
+      "unknown": [],
+      "reordered": false
+     }
+    }
+   }
+  },
+  {
+   "id": "EL-071",
+   "domains": [
+    "electrical",
+    "location",
+    "leakage_trap"
+   ],
+   "priority": "p2",
+   "severity": "minor",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "relay box"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.838,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-072",
+   "domains": [
+    "electrical",
+    "location",
+    "sensor"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "pressure switch",
+       "connector"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.826,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-073",
+   "domains": [
+    "electrical",
+    "inspection",
+    "leakage_trap"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "switch",
+       "connector",
+       "harness"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.847,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-074",
+   "domains": [
+    "electrical",
+    "safety",
+    "leakage_trap",
+    "abbreviation"
+   ],
+   "priority": "p0",
+   "severity": "critical",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": [],
+      "unexpected": []
+     }
+    },
+    "kept_names": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "missing": []
+     }
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "connector",
+       "sensor",
+       "relay"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 0.792,
+      "band": [
+       0.6,
+       1.9
+      ]
+     }
+    },
+    "leakage": {
+     "score": 0.0,
+     "passed": true,
+     "detail": {
+      "leaked": [],
+      "ratio": 0.0
+     }
+    },
+    "placeholder_roundtrip": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    }
+   }
+  },
+  {
+   "id": "EL-075",
+   "domains": [
+    "electrical",
+    "inspection",
+    "leakage_trap"
+   ],
+   "priority": "p1",
+   "severity": "major",
+   "hard_pass": true,
+   "error": "",
+   "repaired": false,
+   "attempts": 0,
+   "routed_to_review": false,
+   "review_rules": [],
+   "metrics": {
+    "protected_codes": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "number_unit": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "safety_signals": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "kept_names": {
+     "score": null,
+     "passed": null,
+     "detail": {}
+    },
+    "glossary_hit": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "hits": [
+       "fuse box",
+       "relay box",
+       "ground"
+      ],
+      "misses": [],
+      "forbidden": [],
+      "variant_hits": []
+     }
+    },
+    "length_ratio": {
+     "score": 1.0,
+     "passed": true,
+     "detail": {
+      "ratio": 1.103,
       "band": [
        0.6,
        1.9

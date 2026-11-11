@@ -14,9 +14,14 @@ from src.guard.signal_words import load_signal_table
 
 from .cases import EvalCase, GlossaryTerm, nfc
 
-HARD = ("protected_codes", "number_unit", "safety_signals")
+HARD = ("protected_codes", "number_unit", "safety_signals", "kept_names")
 SOFT = ("glossary_hit", "length_ratio", "leakage", "placeholder_roundtrip")
 LOWER_IS_BETTER = ("leakage",)
+NEAR_HARD = ("leakage",)             # soft tolerance does not apply: absolute limits in report.gate()
+LEAKAGE_MAX_OVERALL = 0.005          # founder rule: <= 0.5% leftover English words overall, 0 in p0 cases
+# Brand names that legitimately stay in English (never counted as leakage).
+BRAND_NAMES = frozenset({"kobelco", "komatsu", "hitachi", "caterpillar", "denso", "bosch", "yanmar", "isuzu",
+                         "hino", "toyota", "cummins", "perkins", "deutz", "kubota", "hyundai", "volvo"})
 LENGTH_BAND = (0.6, 1.9)  # VI chars / EN chars; EN->VI expands, short strings vary a lot
 
 
@@ -35,6 +40,41 @@ def norm(s: str) -> str:
 
 def fold(s: str) -> str:
     return norm(s).casefold()
+
+
+_OLD_TONE = re.compile(r"(?<!q)(oa|oe|uy)([\u0300\u0301\u0309\u0303\u0323])")
+
+
+def fold_vi(s: str) -> str:
+    """Matching key for Vietnamese: NFC, case-insensitive, hyphens/spaces ignored ('rơ-le' == 'rơ le' == 'rơle'),
+    old and new tone placement equal ('hoà' == 'hòa', 'thuỷ' == 'thủy'). Vietnamese has no inflection, so a
+    plain substring test on this key is the whole matcher."""
+    t = unicodedata.normalize("NFD", norm(s).casefold())
+    t = _OLD_TONE.sub(lambda m: m.group(1)[0] + m.group(2) + m.group(1)[1], t)
+    t = unicodedata.normalize("NFC", t)
+    return re.sub(r"[\s\-\u2010-\u2015]+", "", t)
+
+
+def forbidden_found(target: str, term: GlossaryTerm) -> list[str]:
+    """Forbidden VI variants present as whole words. Codes (`Pin 1`, `C-12`) are masked first so that the forbidden
+    'pin' (dry cell) does not fire on the protected 'Pin 1'."""
+    if not term.forbidden_vi:
+        return []
+    try:
+        text = fold(mask(nfc(target), load_patterns())[0])
+    except ValueError:      # target already contains placeholder brackets
+        text = fold(target)
+    return [f for f in term.forbidden_vi
+            if re.search(r"(?<!\w)" + r"\s+".join(map(re.escape, fold(f).split())) + r"(?!\w)", text)]
+
+
+def has_form(target_key: str, term: GlossaryTerm) -> Optional[str]:
+    """First accepted VI form (canonical, then variants) of `term` found in an already folded target key."""
+    for f in term.vi_forms:
+        k = fold_vi(f)
+        if k and k in target_key:
+            return f
+    return None
 
 
 # --- protected codes ---------------------------------------------------------------------------------
@@ -135,42 +175,56 @@ def find_terms(text: str, glossary: dict[str, GlossaryTerm]) -> list[str]:
 
 
 def glossary_hit(case: EvalCase, target: str, glossary: dict[str, GlossaryTerm]) -> MetricResult:
-    tgt = fold(target)
-    hits, misses = [], []
+    """Expected terms found with the canonical VI term or any listed variant (`variants_vi`)."""
+    tgt = fold_vi(target)
+    hits, misses, variant_hits = [], [], []
     for en in case.expected_terms:
         t = glossary.get(" ".join(en.split()).casefold())
         if t is None:
             raise KeyError(f"{case.id}: expected term {en!r} is not in the glossary")
-        (hits if fold(t.term_vi) in tgt else misses).append(t.term_en)
+        form = has_form(tgt, t)
+        (hits if form else misses).append(t.term_en)
+        if form and fold_vi(form) != fold_vi(t.term_vi):
+            variant_hits.append(t.term_en)
     forbidden = sorted({f for en in case.expected_terms if (t := glossary.get(en.casefold()))
-                        for f in t.forbidden_vi if fold(f) in tgt})
+                        for f in forbidden_found(target, t)})
     if not case.expected_terms:
         return MetricResult(None, None, {})
     return MetricResult(len(hits) / len(case.expected_terms), not misses and not forbidden,
-                        {"hits": hits, "misses": misses, "forbidden": forbidden})
+                        {"hits": hits, "misses": misses, "forbidden": forbidden, "variant_hits": variant_hits})
 
 
 def consistency(cases: list[EvalCase], targets: dict[str, str], glossary: dict[str, GlossaryTerm]) -> dict:
-    """Document level: a term that is rendered with the approved VI in some segments must not be missing or
-    replaced by a forbidden variant in others (same EN term -> same VI term)."""
+    """Document level: a term that is rendered with an accepted VI form in some segments must not be missing or
+    replaced by a forbidden variant in others (same EN term -> same VI term). Accepted variants count as hits;
+    terms rendered with more than one accepted form are listed in `mixed_forms` (reported, not scored)."""
     per: dict[str, dict] = {}
     for c in cases:
-        tgt = fold(targets.get(c.id, ""))
+        tgt = fold_vi(targets.get(c.id, ""))
         src = c.source
         for p in sorted(c.protected, key=len, reverse=True):
             src = src.replace(p, " ")  # 'terminal 3' is a protected code, not the glossary term
         for key in find_terms(src, glossary):
             t = glossary[key]
-            d = per.setdefault(key, {"term": t.term_en, "vi": t.term_vi, "hit": [], "miss": [], "forbidden": []})
-            (d["hit"] if fold(t.term_vi) in tgt else d["miss"]).append(c.id)
-            if any(fold(f) in tgt for f in t.forbidden_vi):
+            d = per.setdefault(key, {"term": t.term_en, "vi": t.term_vi, "hit": [], "miss": [], "forbidden": [],
+                                     "forms": set()})
+            form = has_form(tgt, t)
+            if form:
+                d["hit"].append(c.id)
+                d["forms"].add(form)
+            else:
+                d["miss"].append(c.id)
+            if forbidden_found(targets.get(c.id, ""), t):
                 d["forbidden"].append(c.id)
     bad = [d for d in per.values() if (d["hit"] and d["miss"]) or d["forbidden"]]
+    mixed = [{"term": d["term"], "forms": sorted(d["forms"])} for d in per.values() if len(d["forms"]) > 1]
+    for d in per.values():
+        d["forms"] = sorted(d["forms"])
     return {"terms_seen": len(per), "inconsistent": sorted(bad, key=lambda d: d["term"]),
+            "mixed_forms": sorted(mixed, key=lambda d: d["term"]),
             "score": 1 - len(bad) / len(per) if per else None}
 
 
-# --- safety signals ------------------------------------------------------------------------------------
 def safety_signals(case: EvalCase, target: str, table: Optional[dict[str, str]] = None) -> MetricResult:
     """Each EN signal word in the source needs its fixed VI form in the target (case-insensitive, NFC).
     A shouted VI signal the source does not have (downgrade/upgrade) also fails."""
@@ -194,6 +248,18 @@ def safety_signals(case: EvalCase, target: str, table: Optional[dict[str, str]] 
     return MetricResult(1.0 if ok else 0.0, ok, {"missing": missing, "unexpected": unexpected})
 
 
+# --- names and abbreviations that must stay in English ---------------------------------------------------
+def kept_names(case: EvalCase, target: str) -> MetricResult:
+    """Every string in `case.keep` (ECU, SOL, GND, B+, wire colour codes, brand names) appears in the output
+    exactly as written (NFC, case-sensitive, whole token). Not applicable when the case lists none."""
+    if not case.keep:
+        return MetricResult(None, None, {})
+    tgt = nfc(target)
+    missing = [k for k in case.keep
+               if not re.search(r"(?<![\w])" + re.escape(nfc(k)) + r"(?![\w])", tgt)]
+    return MetricResult(1.0 if not missing else 0.0, not missing, {"missing": missing})
+
+
 # --- length, leakage, placeholders ----------------------------------------------------------------------
 def length_ratio(case: EvalCase, target: str, band: tuple[float, float] = LENGTH_BAND) -> MetricResult:
     s, t = len(nfc(case.source).strip()), len(nfc(target).strip())
@@ -208,19 +274,20 @@ _ASCII_WORD = re.compile(r"(?<![\w])[A-Za-z]{3,}(?![\w])")
 
 def leakage(case: EvalCase, target: str, glossary: Optional[dict[str, GlossaryTerm]] = None) -> MetricResult:
     """Share of target words that are untranslated English: ASCII words (>=3 letters) that occur in the source,
-    outside protected strings, all-caps tokens (ON, OFF, GND) and words of the expected VI terms."""
+    outside protected strings, `keep` names, brand names, all-caps tokens (ON, OFF, GND) and words of the expected
+    VI forms. `detail.leaked` lists the leftover words (no 'English term (Vietnamese)' pairs either way)."""
     text = nfc(target)
-    for p in sorted(case.protected, key=len, reverse=True):
+    for p in sorted([*case.protected, *case.keep], key=len, reverse=True):
         text = text.replace(nfc(p), " ")
-    text = " ".join(v for v in [text] if v)
     for rx in [rx for n, rx in load_patterns()]:
         text = rx.sub(" ", text)
     src_words = {w.lower() for w in _ASCII_WORD.findall(nfc(case.source))}
-    allowed: set[str] = set()
+    allowed: set[str] = set(BRAND_NAMES)
     for en in case.expected_terms:
         t = (glossary or {}).get(en.casefold())
         if t:
-            allowed |= {w.lower() for w in _WORD.findall(t.term_vi)}
+            for f in t.vi_forms:
+                allowed |= {w.lower() for w in _WORD.findall(f)}
     total = len(_WORD.findall(text)) or 1
     leaked = [w for w in _ASCII_WORD.findall(text) if not w.isupper() and w.lower() in src_words
               and w.lower() not in allowed]
