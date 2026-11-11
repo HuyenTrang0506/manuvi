@@ -22,12 +22,37 @@ def test_expected_terms_exist_in_glossary_and_source():
             assert t.casefold() in g, (c.id, t)
 
 
-def test_glossary_is_proposals_only_and_about_sixty_terms():
+def test_glossary_status_sources_and_keep_english_rule():
     g = load_glossary()
-    assert 55 <= len(g) <= 70
-    assert {t.status for t in g.values()} == {"proposed"}
-    assert all("PROPOSAL" in t.note for t in g.values())
+    terms = [t for t in g.values() if not t.keep_english]
+    names = [t for t in g.values() if t.keep_english]
+    assert 60 <= len(terms) <= 75
+    assert {t.status for t in terms} <= {"verified-usage", "proposed"}
+    verified = [t for t in terms if t.status == "verified-usage"]
+    assert 25 <= len(verified) < len(terms)
+    # verified-usage needs a source URL; proposed terms need a note saying why
+    assert all(t.source.startswith("https://") for t in verified)
+    assert all(t.note for t in terms if t.status == "proposed")
+    # founder rule: only true names/abbreviations may keep their English form; every other term is Vietnamese
+    assert {t.term_en for t in names} >= {"ECU", "SOL", "SW", "GND", "B+"}
+    assert all(t.term_vi == t.term_en and t.status == "keep-english" for t in names)
+    for t in terms:
+        assert t.term_vi and t.term_vi.casefold() != t.term_en.casefold(), t.term_en
+        assert not any(v.casefold() == t.term_en.casefold() for v in t.variants_vi), t.term_en
     assert len(glossary_hash(g)) == 64
+
+
+def test_variants_do_not_collide_across_canonical_forms_of_different_terms():
+    # one canonical VI form must not belong to two different concepts (outside the known solenoid pair)
+    g = load_glossary()
+    seen: dict[str, str] = {}
+    for t in g.values():
+        if t.keep_english:
+            continue
+        key = t.term_vi.casefold()
+        if key in seen and {seen[key], t.term_en} != {"solenoid", "solenoid valve"}:
+            raise AssertionError((key, seen[key], t.term_en))
+        seen[key] = t.term_en
 
 
 def write_set(tmp_path, n=2):

@@ -1,8 +1,11 @@
 # Fixed EN -> VI forms for signal words. A mismatch between source and target is an Error.
 # The pipeline and `manuvi eval` split a LEADING signal word off BEFORE the model call and re-attach this fixed
 # Vietnamese form afterwards (src/guard/segment.py), so the model never translates it.
-status: proposed          # PROPOSED by engineering; NOT approved
-approval: "pending founder/uncle approval (set status: approved and approved_by when they sign off)"
+# Status: the founder decided (2026-11-11) that wording needs no workshop sign-off while it matches real Vietnamese
+# usage. Each form below is used in Vietnamese manuals (see `verification`); `alternatives` lists other wording
+# seen in the wild, for information only (the guard uses the fixed form).
+status: verified-usage
+approval: "usage-checked 2026-11-11 against Vietnamese manuals; no workshop sign-off required while usage matches"
 approved_by: ""
 signal_words:
   DANGER: "NGUY HIỂM"
@@ -10,4 +13,27 @@ signal_words:
   CAUTION: "THẬN TRỌNG"
   NOTE: "LƯU Ý"
   IMPORTANT: "QUAN TRỌNG"
+verification:
+  DANGER:
+    status: verified-usage
+    sources: ["https://www.toro.com/getpub/242946", "https://isuzu-vietnam.com/data/cv/maintenance/EURO5/Owner-Manua-E-Sries-E5.pdf"]
+    note: "NGUY HIỂM as the top hazard level in a Toro VN operator manual and an Isuzu VN owner manual."
+  WARNING:
+    status: verified-usage
+    sources: ["https://www.toro.com/getpub/242946", "https://isuzu-vietnam.com/data/cv/maintenance/EURO5/Owner-Manua-E-Sries-E5.pdf", "https://npower.com.vn/cdn/shop/files/kyoritsu_huongdan__1061_1062.pdf"]
+    note: "CẢNH BÁO in all three."
+  CAUTION:
+    status: verified-usage
+    sources: ["https://www.toro.com/getpub/242946", "https://npower.com.vn/cdn/shop/files/kyoritsu_huongdan__1061_1062.pdf"]
+    alternatives: ["CHÚ Ý (Isuzu VN owner manual; TCVN 2572 electrical signs use 'Chú ý!')"]
+    note: "THẬN TRỌNG is the ISO 3864 style third level (Toro, Kyoritsu). Isuzu uses CHÚ Ý for the same level; kept THẬN TRỌNG so CAUTION and NOTE never collide."
+  NOTE:
+    status: verified-usage
+    sources: ["https://www.toro.com/getpub/242946", "https://isuzu-vietnam.com/data/cv/maintenance/EURO5/Owner-Manua-E-Sries-E5.pdf"]
+    alternatives: ["Ghi chú (Kyoritsu VN manual)"]
+    note: "Lưu ý in Toro (sentence case) and LƯU Ý in Isuzu."
+  IMPORTANT:
+    status: verified-usage
+    sources: ["https://www.toro.com/getpub/242946"]
+    note: "Quan trọng in a Toro VN manual (sentence case)."
 # YES/NO are deliberately not here: too ambiguous inside prose ("NO. 5 valve").
