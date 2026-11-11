@@ -21,7 +21,7 @@ from .page import Segment, SegResult, anchor_drift, render_document
 from .synth import _diacritic, _protected_spans
 
 PAD = "ươạảấềộ"
-OVERLAP_MIN = 1.0   # pt^2 of new overlap between two placed text boxes that counts as a collision
+OVERLAP_MIN = 0.6   # pt: two placed text boxes collide when they overlap by more than this in both directions
 
 
 def expand_vi(text: str, lo: float = 1.15, hi: float = 1.35) -> str:
@@ -72,7 +72,8 @@ def _overlaps(segs: list[Segment], res: list[SegResult]) -> int:
     for i in range(len(items)):
         for j in range(i + 1, len(items)):
             (o1, p1), (o2, p2) = items[i], items[j]
-            if (p1 & p2).get_area() > OVERLAP_MIN and (o1 & o2).get_area() <= OVERLAP_MIN:
+            ov = p1 & p2
+            if ov.width > OVERLAP_MIN and ov.height > OVERLAP_MIN and (o1 & o2).get_area() <= OVERLAP_MIN:
                 n += 1
     return n
 
@@ -89,8 +90,18 @@ def simulate_page(pdf: Path, p0: int, engine: str, fontset: FontSet, keep_to: Pa
         mx = u.max_size if engine == "faithful" else _legacy_max(u.kind, u.style.size if u.style else u.max_size)
         segs.append(Segment(p0, u.bbox, u.kind, u.text, expand_vi(u.text), rotate=u.rotate, max_size=mx, style=st))
     out = keep_to or Path(f"/tmp/manuvi-fid-{p0}-{engine}.pdf")
+    with pymupdf.open(str(pdf)) as doc:
+        art0 = len(doc[p0].get_drawings()) + len(doc[p0].get_image_info())
     results = render_document(pdf, segs, out, fontfile=fontset, pages=[p0])
     pr = results[0]
+    with pymupdf.open(str(out)) as o:
+        art1 = len(o[0].get_drawings()) + len(o[0].get_image_info())
+        left_txt = o[0].get_text()
+    wd = lambda t: {w.lower() for w in re.findall(r"[A-Za-z]{4,}", t)}
+    orig_w = set().union(*[wd(u.text) for u in units]) if units else set()
+    vi_w = set().union(*[wd(s.target) for s in segs]) if segs else set()
+    gone = orig_w - vi_w
+    orig_left = sum(1 for w in re.findall(r"[A-Za-z]{4,}", left_txt) if w.lower() in gone)
     blocks = []
     for u, s, r in zip(units, segs, pr.segs):
         st = u.style
@@ -107,7 +118,8 @@ def simulate_page(pdf: Path, p0: int, engine: str, fontset: FontSet, keep_to: Pa
                        "lines0": r.lines0, "lines": r.lines, "stage": r.stage, "overflow": bool(r.overflow),
                        "legend": r.stage == "legend", "needs_review": r.needs_review, "below90": r.shrunk90,
                        "growth": round(grow, 3), "box": list(r.box), "room": list(r.room)})
-    return {"blocks": blocks, "kept": kept, "overlaps": _overlaps(segs, pr.segs), "legend_page": pr.legend}
+    return {"blocks": blocks, "kept": kept, "overlaps": _overlaps(segs, pr.segs), "legend_page": pr.legend,
+            "line_art_lost": art0 - art1, "orig_words_left": orig_left}
 
 
 def _stats(vals: list[float]) -> dict:
@@ -117,7 +129,7 @@ def _stats(vals: list[float]) -> dict:
     return {"min": round(v[0], 3), "median": round(statistics.median(v), 3), "p10": round(v[max(0, int(0.1 * len(v)) - 0)], 3)}
 
 
-def summarize(blocks: list[dict], overlaps: int = 0) -> dict:
+def summarize(blocks: list[dict], overlaps: int = 0, art_lost: int = 0, words_left: int = 0) -> dict:
     n = len(blocks)
     pct = lambda k: round(100.0 * sum(1 for b in blocks if k(b)) / n, 1) if n else 0.0
     fm = defaultdict(lambda: [0, 0])
@@ -133,7 +145,7 @@ def summarize(blocks: list[dict], overlaps: int = 0) -> dict:
             "line_count_changed_pct": pct(lambda b: b["lines"] != b["lines0"]),
             "drift_pt": {"median": round(statistics.median(drift), 2) if drift else 0, "max": round(max(drift, default=0), 2),
                          "over2_pct": pct(lambda b: b["drift"] > 2.0)},
-            "overlaps": overlaps,
+            "overlaps": overlaps, "line_art_lost": art_lost, "orig_words_left": words_left,
             "stages": dict(Counter(b["stage"] for b in blocks)),
             "fonts": {k: {"blocks": v[0], "matched": int(v[1])} for k, v in sorted(fm.items(), key=lambda kv: -kv[1][0])}}
 
@@ -155,18 +167,20 @@ def analyze(pdf: Path, section: str, pages: int, engines: tuple[str, ...] = ("fa
     rep: dict = {"section": section, "pages": [], "engines": {}, "font_files": {},
                  "simulation": "deterministic expansion x1.15-1.35, no model"}
     for eng in engines:
-        allb, ov, per = [], 0, []
+        allb, ov, per, lost, left = [], 0, [], 0, 0
         for sp in sample:
             t0 = time.time()
             keep = (keep_dir / f"{eng}-p{sp.pdf_page:04d}.pdf") if keep_dir else None
             r = simulate_page(pdf, sp.pdf_page - 1, eng, fontset, keep)
-            s = summarize(r["blocks"], r["overlaps"])
+            s = summarize(r["blocks"], r["overlaps"], r["line_art_lost"], r["orig_words_left"])
             per.append({"label": sp.label, "pdf_page": sp.pdf_page, "type": sp.kind, "kept_as_printed": r["kept"],
                         "legend_page": r["legend_page"], "seconds": round(time.time() - t0, 1), **s})
             allb += r["blocks"]
             ov += r["overlaps"]
+            lost += r["line_art_lost"]
+            left += r["orig_words_left"]
             progress(f"{eng} {sp.label}: {s['blocks']} blocks")
-        rep["engines"][eng] = {"total": summarize(allb, ov), "pages": per}
+        rep["engines"][eng] = {"total": summarize(allb, ov, lost, left), "pages": per}
     rep["font_files"] = {k: Path(fontset.face(k).path).name for k in ("ArialMT", "Arial-BoldMT", "MSGothic", "Helvetica",
                                                                        "SymbolMT", "Arial-ItalicMT")}
     return rep
@@ -182,7 +196,7 @@ def to_markdown(rep: dict) -> str:
               f"median {t['size_ratio']['median']}",
               f"- blocks below 90 % of original size: {t['below90_n']} ({t['below90_pct']} %)",
               f"- overflow: {t['overflow']}; legend fallback: {t['legend']}; needs_review: {t['needs_review']}; "
-              f"overlaps: {t['overlaps']}",
+              f"overlaps: {t['overlaps']}; line art or images lost: {t['line_art_lost']}; original words left under the new text: {t['orig_words_left']}",
               f"- font family match: {t['font_match_pct']} %; line count changed: {t['line_count_changed_pct']} %",
               f"- position drift: median {t['drift_pt']['median']} pt, max {t['drift_pt']['max']} pt, "
               f"over 2 pt: {t['drift_pt']['over2_pct']} %",

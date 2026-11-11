@@ -152,7 +152,7 @@ def test_no_new_overlaps_with_crowded_labels(tmp_path):
             p.insert_text((20 + 95 * i, 140), t + " lead", fontsize=8, fontname="helv")
     src = make_pdf(tmp_path / "a.pdf", b)
     r = simulate_page(src, 0, "faithful", FontSet(), tmp_path / "x.pdf")
-    assert r["overlaps"] == 0
+    assert r["overlaps"] == 0 and r["line_art_lost"] == 0 and r["orig_words_left"] == 0
     s = summarize(r["blocks"])
     assert s["below90_pct"] >= 0 and s["blocks"] == 8
     # every drawn box stays on the page
