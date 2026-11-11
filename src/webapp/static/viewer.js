@@ -16,7 +16,7 @@
     return j;
   }
   const label = (p) => p.label;
-  const chipState = (p) => (p.review || p.layout_review) ? 'review' : 'done';
+  const chipState = (p) => (p.review || p.layout_review) ? 'review' : (p.vi_index === null || p.vi_index === undefined) ? 'pending' : 'done';
   const chipWord = (p) => (p.review || p.layout_review) ? 'cần xem lại' : (p.vi_index === null ? 'chưa dịch' : 'đã dịch');
 
   function strip() {
