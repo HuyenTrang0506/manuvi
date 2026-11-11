@@ -10,4 +10,4 @@ if [ -z "$FIXTURE" ]; then
   python -m src.cli eval make-fixture "$FIXTURE"
 fi
 python -m src.cli eval run --model "${MODEL:-recorded}" --fixture "$FIXTURE" \
-  --baseline "${BASELINE:-src/eval/baselines/electrical_v1.recorded-reference.json}" "${@:2}"
+  --baseline "${BASELINE:-src/eval/baselines/electrical_v2.recorded-reference.json}" "${@:2}"

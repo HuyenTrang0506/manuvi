@@ -110,13 +110,14 @@ def test_cli_verify_and_glossary_template(tmp_path):
     assert runner.invoke(app, ["eval", "glossary-template", str(x)]).exit_code == 0
     from openpyxl import load_workbook
     wb = load_workbook(x)
-    assert "NOTHING is approved" in wb["README"]["A2"].value
+    assert "verified-usage" in wb["README"]["A2"].value
     rows = list(wb["terms"].iter_rows(values_only=True))
-    assert rows[0][2] == "status" and {r[2] for r in rows[1:]} == {"proposed"}
+    assert rows[0][2] == "status" and {r[2] for r in rows[1:]} == {"proposed", "verified-usage", "keep-english"}
+    assert rows[0][-3:] == ("variants_vi", "source", "keep_english")
 
 
 def test_committed_baseline_matches_reference_replay(tmp_path, fixture_path):
     from pathlib import Path
-    b = Path(__file__).resolve().parents[2] / "src/eval/baselines/electrical_v1.recorded-reference.json"
+    b = Path(__file__).resolve().parents[2] / "src/eval/baselines/electrical_v2.recorded-reference.json"
     r = run_eval(model="recorded", fixture=fixture_path, out_root=tmp_path, run_id="ci", baseline=b)
     assert r.ok, r.gate.failures
