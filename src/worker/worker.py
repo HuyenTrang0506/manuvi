@@ -22,12 +22,15 @@ from src.llm_gateway.adapters import Adapter
 from src.pipeline.runner import job_status, make_gateway, run_job
 from src.pipeline.schema import CHECKPOINT_FILE, CACHE_FILE, DB_FILE, LEDGER_FILE, SEGMENTS_FILE
 
-from .outputs import build_outputs
+from src.formats import FormatError
+from src.formats.job import FORMAT_FILE, build_file_output, input_name, prepare_file
+
+from .outputs import build_outputs, segments_xlsx
 from .prepare import JOBSPEC_FILE, LAYOUT_FILE, TERMS_FILE, PdfLimitError, prepare
 
 log = logging.getLogger("manuvi.worker")
 STATE_FILES = (DB_FILE, LEDGER_FILE, CHECKPOINT_FILE, CACHE_FILE)  # resume state, uploaded as state/<name>
-META_FILES = ("chunks.json", LAYOUT_FILE, JOBSPEC_FILE, TERMS_FILE)
+META_FILES = ("chunks.json", LAYOUT_FILE, JOBSPEC_FILE, TERMS_FILE, FORMAT_FILE)
 MERGE_TRIES = 6
 
 
@@ -163,10 +166,11 @@ class Worker:
         return out
 
     # ---- file sync
-    def _pull(self, job_id: str, work: Path) -> None:
-        pdf = work / "input.pdf"
+    def _pull(self, job_id: str, work: Path, fmt: str = "pdf") -> None:
+        name = "input.pdf" if fmt == "pdf" else input_name(fmt)
+        pdf = work / name
         if not pdf.exists():
-            self.store.get_file(job_id, "input.pdf", pdf)
+            self.store.get_file(job_id, name, pdf)
         for n in META_FILES:
             if not (work / n).exists() and self.store.exists(job_id, n):
                 self.store.get_file(job_id, n, work / n)
@@ -264,10 +268,15 @@ class Worker:
         try:
             self._status(job_id, JobState.running if st.state not in TERMINAL else JobState.done,
                          attempts=st.attempts + 1, error_code=None)
-            self._pull(job_id, work)
+            self._pull(job_id, work, rec.format)
             if rebuild:
                 return self._finish(msg, job_id, rec, work, final_state=JobState.done, outcome="rebuilt")
-            if not (work / "chunks.json").exists():
+            if not (work / "chunks.json").exists() and rec.format != "pdf":
+                info = prepare_file(work, work / input_name(rec.format), original_name=rec.name)
+                self._push_meta(job_id, work)
+                self._status(job_id, JobState.running, pages=info["pages"], chunks=info["chunks"],
+                             pending=info["chunks"])
+            elif not (work / "chunks.json").exists():
                 info = prepare(work, work / "input.pdf", rec.sections, rec.page_map, rec.priority_sections)
                 self._push_meta(job_id, work)
                 self._status(job_id, JobState.running, pages=info["pages"], chunks=info["chunks"],
@@ -276,6 +285,9 @@ class Worker:
             outcome = self._run(msg, job_id, rec, work)
         except IntakeError:
             self._fail(msg, job_id, "INTAKE", ack=True)
+            outcome = "failed"
+        except FormatError as e:  # hostile or unsupported file: retrying cannot help
+            self._fail(msg, job_id, e.code, ack=True)
             outcome = "failed"
         except PdfLimitError as e:  # retrying the same PDF cannot help: fail once, with a code the page explains
             self._fail(msg, job_id, e.code, ack=True)
@@ -331,13 +343,32 @@ class Worker:
 
     def _finish(self, msg, job_id, rec, work, final_state, outcome) -> str:
         segs = self._merge_segments(job_id, work)
-        names, err = build_outputs(work, work / "input.pdf", segs)
+        if rec.format != "pdf":
+            names, err = self._file_outputs(work, rec, segs)
+        else:
+            names, err = build_outputs(work, work / "input.pdf", segs)
         for n in names:
             self.store.put_file(job_id, n, work / n)
         self._push_state(job_id, work)
         self._status(job_id, final_state, error_code=err, outputs=sorted(names), **self._progress(job_id, work))
         self.queue.ack(msg)
         return outcome
+
+    @staticmethod
+    def _file_outputs(work: Path, rec: JobRecord, segs: list[dict]) -> tuple[list[str], str | None]:
+        """Same-format output `out/<name>.vi.<ext>` plus the segments Excel; a rebuild failure keeps the Excel."""
+        names = []
+        out = work / "out"
+        out.mkdir(exist_ok=True)
+        segments_xlsx(segs, out / "segments.xlsx")
+        names.append("out/segments.xlsx")
+        try:
+            dest, _rep = build_file_output(work, work / input_name(rec.format), out, name=rec.name)
+        except FormatError as e:
+            return names, e.code
+        except Exception:
+            return names, "REBUILD_FAILED"
+        return [f"out/{dest.name}", *names], None
 
     def _fail(self, msg: Message, job_id: str, code: str, ack: bool) -> None:
         if ack:

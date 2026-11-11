@@ -30,6 +30,8 @@ PROMPT_VERSION = "pipe-v2"
 PLACEHOLDER_RULE = ("Tokens like ⟦P001⟧ stand for protected codes. Copy each one exactly once, unchanged, "
                     "in the same order. Never translate, drop or invent them.")
 RISK_BASE = {"signal": 0.8, "table": 0.4, "step": 0.3, "prose": 0.1, "label": 0.1}
+TAG_RULE = ("Tags like <b1>...</b1> and <x1/> mark inline formatting. Keep every tag exactly once, properly nested, "
+            "and translate only the text between them. Keep &lt; &gt; &amp; exactly as written.")
 _STEP_RE = re.compile(r"^\s*(?:\d+[.)]|[a-z][.)]|[-•*])\s+")
 
 
@@ -83,6 +85,11 @@ class PipelineContext:
         return job.config.allow_paid
 
 
+def chunk_patterns(base: list, c) -> list:
+    """Global protected-code patterns plus the chunk's own literal protected spans (formats other than PDF)."""
+    return [*base, *(("fmt", re.escape(p)) for p in c.protect)] if c.protect else base
+
+
 def _issue_str(i: dict) -> str:
     return f"{i['rule_id']}: {i['message']}"
 
@@ -134,7 +141,7 @@ def build_graph(ctx: PipelineContext, checkpointer):
         cur = dict(state["cur"])
         c = db.get_chunk(cur["id"])
         try:
-            prep = prepare(c.source, ctx.qa_ctx.patterns, ctx.qa_ctx.signal_table)
+            prep = prepare(c.source, chunk_patterns(ctx.qa_ctx.patterns, c), ctx.qa_ctx.signal_table)
         except ValueError as e:
             cur["skip"] = f"MASK001: {e}"
             return {"cur": cur, "_trace": {"status": "skipped"}}
@@ -157,7 +164,11 @@ def build_graph(ctx: PipelineContext, checkpointer):
         version = PROMPT_VERSION + (f".r{gen}" if gen else "")  # a re-run must not hit the cache
         p = build_translation_prompt(masked, subset, hits, version)
         msgs = p["messages"]
-        msgs[0] = {**msgs[0], "content": msgs[0]["content"] + "\n\n" + PLACEHOLDER_RULE}
+        rule = PLACEHOLDER_RULE
+        ch = db.get_chunk(cur["id"])
+        if ch.fmt:
+            rule += " " + TAG_RULE + (f"\nContext (do not translate): {ch.ctx}" if ch.ctx else "")
+        msgs[0] = {**msgs[0], "content": msgs[0]["content"] + "\n\n" + rule}
         cur.update(messages=msgs, prompt_version=p["prompt_version"])
         return {"cur": cur, "_trace": {"prompt_version": version}}
 
@@ -211,8 +222,15 @@ def build_graph(ctx: PipelineContext, checkpointer):
     def qa(state: State) -> dict:
         cur = dict(state["cur"])
         c = db.get_chunk(cur["id"])
-        prep = prepare(c.source, ctx.qa_ctx.patterns, ctx.qa_ctx.signal_table)
-        issues = check(prep, cur["raw"], ctx.qa_ctx)   # same QA as `manuvi eval`: assembled text vs ORIGINAL source
+        pats = chunk_patterns(ctx.qa_ctx.patterns, c)
+        prep = prepare(c.source, pats, ctx.qa_ctx.signal_table)
+        qctx = QAContext(patterns=pats, signal_table=ctx.qa_ctx.signal_table)
+        issues = check(prep, cur["raw"], qctx)   # same QA as `manuvi eval`: assembled text vs ORIGINAL source
+        if c.fmt:  # inline tags and founder leakage rule for non-PDF formats
+            from ..formats.qa import format_issues
+            extra = format_issues(c.source, cur["target"])
+            if extra:
+                issues = [i for i in issues if i.rule_id != "OK"] + extra
         cur["issues"] = [i.model_dump(mode="json") for i in issues]
         n_err = sum(i.severity == Severity.error for i in issues)
         return {"cur": cur, "_trace": {"issues": n_err, "attempt": cur["attempt"]}}
