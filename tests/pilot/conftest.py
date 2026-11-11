@@ -83,6 +83,8 @@ class Counting(DemoTranslator):
         self.texts: list[str] = []
 
     def complete(self, req, model_id):
+        if req.model_alias == "vision":      # the vision model sees nothing readable on the grey test picture
+            return {"text": '{"blocks": []}', "tokens_in": 1, "tokens_out": 1}
         self.texts.append(next(m for m in req.messages if m["role"] == "user")["content"])
         if any("Starter motor" in t for t in self.texts[-1:]):
             raise RequestRejected("400")

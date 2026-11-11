@@ -267,3 +267,34 @@ def test_config_defaults_and_env(tmp_path):
 def test_lookalike_letters_in_a_code_are_blocked_as_foreign_script(tmp_path):
     res = read_raw(tmp_path, [blk("УN20-01234-A")])      # Cyrillic У instead of Y
     assert res.blocks[0].blocking and "script" in res.blocks[0].reasons
+
+
+def test_ollama_request_shape_and_end_to_end_through_the_real_adapter(tmp_path):
+    """qa profile: alias vision -> ollama adapter on localhost; image goes as a data URL with a JSON schema."""
+    import httpx
+    seen = {}
+    doc = pymupdf.open()
+    rect = mixed_page(doc)
+    p = doc[0]
+    truth = visible_truth(p, [("CAB WORK LIGHT", rect)])
+
+    def handler(request):
+        body = json.loads(request.content)
+        seen["body"], seen["url"] = body, str(request.url)
+        from .vision_helpers import scripted_answer
+        # the tile is not in the body, so answer for the region we asked (single region read below)
+        text = scripted_answer("p1:" + ",".join(f"{v:.2f}" for v in seen["clip"]), truth)
+        return httpx.Response(200, json={"choices": [{"message": {"content": text}}],
+                                         "usage": {"prompt_tokens": 5, "completion_tokens": 5}})
+
+    ad = OllamaAdapter(client=httpx.Client(transport=httpx.MockTransport(handler)))
+    gw = Gateway(cache_path=tmp_path / "c.sqlite", env={"MANUVI_PROFILE": "qa"}, adapters={"ollama": ad})
+    region = pymupdf.Rect(290, 390, 540, 464)
+    seen["clip"] = tuple(to_visible(p, region))
+    res = VisionReader(gw, "job1").read_page(p, [region])
+    assert [b.text for b in res.blocks] == ["CAB WORK LIGHT"] and not res.blocks[0].needs_review
+    body = seen["body"]
+    assert seen["url"].endswith("/v1/chat/completions") and body["model"] == "qwen3-vl:8b"
+    parts = body["messages"][1]["content"]
+    assert parts[1]["image_url"]["url"].startswith("data:image/png;base64,")
+    assert body["response_format"]["type"] == "json_schema" and body["temperature"] == 0.0

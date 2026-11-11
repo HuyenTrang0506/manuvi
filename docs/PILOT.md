@@ -11,9 +11,11 @@ scripts/mac/run_pilot.sh                      # default manual path, 10 pages
 scripts/mac/run_pilot.sh /path/to/manual.pdf
 ```
 
-It starts Ollama if needed, pulls the model, updates the virtual environment, runs the pilot and opens the output folder. Overrides: `MANUVI_PILOT_MODEL=ollama:<tag>`, `MANUVI_PILOT_PAGES=8`, `MANUVI_PILOT_OUT=<folder>`.
+It starts Ollama if needed, pulls the model, updates the virtual environment, runs the pilot and opens the output folder. Overrides: `MANUVI_PILOT_MODEL=ollama:<tag>`, `MANUVI_PILOT_VISION_MODEL=ollama:<tag>`, `MANUVI_PILOT_PAGES=8`, `MANUVI_PILOT_OUT=<folder>`.
 
-Without the script: `manuvi pilot --pdf manual.pdf --section 43 --pages 10 --model ollama:<tag> --out workspace/pilot`.
+The vision model (see below) is not downloaded by this script. Install and try it once with `scripts/mac/vision_smoke.sh`.
+
+Without the script: `manuvi pilot --pdf manual.pdf --section 43 --pages 10 --model ollama:<tag> [--vision-model ollama:<tag>] --out workspace/pilot`.
 
 ## What it does
 
@@ -22,7 +24,9 @@ Without the script: `manuvi pilot --pdf manual.pdf --section 43 --pages 10 --mod
 3. Translates each page on its own with the guard (codes, numbers and safety words are protected). Each page is checkpointed: run again and finished pages cost zero model calls.
 4. Renders the Vietnamese text in place on the original page. Page labels, part and connector codes and short abbreviations stay as printed.
 
-A page with no text layer is reported as `needs OCR` and skipped. A failure on one page is logged by error class only (never page text) and the run continues. The last line says how many pages succeeded.
+5. Text that has no text layer is read by a local vision-language model, not by OCR (founder decision). Per page the pilot measures text-layer coverage: a page with no or unusable text (image-only scan, unmapped glyphs, a picture with a few words) is read as a whole; on a page that has text, only picture areas without any text-layer text are read, as cropped regions. The model returns text blocks with boxes. Those blocks are translated and drawn like normal blocks. A block with low confidence, a box outside the page or overlapping another, a foreign script (CJK unless the page has Japanese) or a code that looks misread is marked `[!]` in the PDF and listed in the report; a block with a foreign script or an unplaceable box is only listed, never translated or drawn. Details: `docs/VISION.md`.
+
+A failure on one page is logged by error class only (never page text) and the run continues. A page that needs the vision model and cannot get it (model not installed, unreadable answer) carries a banner and is reported as failed. The last line says how many pages succeeded, how many were read by vision and how many vision blocks were flagged.
 
 ## Outputs (in the output folder)
 
@@ -30,7 +34,7 @@ A page with no text layer is reported as `needs OCR` and skipped. A failure on o
 |---|---|
 | `section43-vi.pdf` | Main deliverable: Vietnamese only, original layout. Same page count as the sample. |
 | `section43-interleaved-review.pdf` | Original page, then its Vietnamese page. Review aid only. |
-| `pilot-report.md` | Per page: type, segments, repaired, routed to review, leftover English words, layout flags (`overflow`, `font_below_min`, `legend_fallback`), seconds. Lists every routed segment. |
+| `pilot-report.md` | Per page: type, segments, repaired, routed to review, leftover English words, vision (`page`/`regions`, blocks read, blocks flagged, skipped or failed reads), layout flags (`overflow`, `font_below_min`, `legend_fallback`, `vision_incomplete`), seconds. Lists every routed segment and every flagged vision block (reasons only, no text). |
 | `review-form.xlsx` | One row per page for the workshop. |
 | `work/` | Checkpoints. Delete the folder to start from scratch. |
 
@@ -44,4 +48,6 @@ For each page, compare the Vietnamese page with the English one and choose in co
 
 - Pages whose own `/Rotate` is set may place legends and markers off the visible area.
 - Leftover English is counted from words that also occur in the source, so it misses English words the model invented.
-- Scanned pages are not translated until OCR exists.
+- Vision reading quality on the real manual is not measured yet; only the synthetic eval exists. Treat every `[!]` block as unchecked.
+- Vision reads are capped per run (`config/vision.yaml`: calls and seconds). A page that hits the cap is flagged `vision_incomplete`, never silently left unread.
+- Pictures read by the model are covered by the Vietnamese text; the original pixels stay under it in the PDF.

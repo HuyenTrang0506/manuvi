@@ -56,10 +56,24 @@ def one_page_pdf(build: Callable, path):
     return out
 
 
+def scripted_answer(target_id: str, truth, extra=(), conf: float = 0.93, kind: str = "label") -> str:
+    """JSON answer of a perfect reader for the tile in target_id (p<n>:x0,y0,x1,y1, visible space).
+    `truth` items are (text, visible rect) or (text, visible rect, confidence)."""
+    x0, y0, x1, y1 = (float(v) for v in target_id.split(":")[1].split(","))
+    w, h = x1 - x0, y1 - y0
+    blocks = []
+    for item in truth:
+        t, r = item[0], item[1]
+        c = pymupdf.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2)
+        if x0 <= c.x <= x1 and y0 <= c.y <= y1:
+            blocks.append({"text": t, "kind": kind, "confidence": item[2] if len(item) > 2 else conf,
+                           "bbox": [(r.x0 - x0) / w, (r.y0 - y0) / h, (r.x1 - x0) / w, (r.y1 - y0) / h]})
+    return json.dumps({"blocks": blocks + list(extra)})
+
+
 class ScriptedVLM(FakeAdapter):
-    """Fake VLM. It knows the visible-space truth boxes and answers with those that fall in the requested
-    tile (the tile arrives in target_id as p<n>:x0,y0,x1,y1), boxes normalised to the tile.
-    `extra`: raw block dicts appended to every answer; `raw`: a fixed response text instead."""
+    """Fake VLM: answers with the truth boxes that fall in the requested tile. `extra`: raw block dicts
+    appended to every answer; `raw`: a fixed response text instead."""
 
     name = "fake"
 
@@ -71,18 +85,7 @@ class ScriptedVLM(FakeAdapter):
     def complete(self, req, model_id):
         self.calls += 1
         self.requests.append(req)
-        if self.raw is not None:
-            text = self.raw
-        else:
-            x0, y0, x1, y1 = (float(v) for v in req.target_id.split(":")[1].split(","))
-            w, h = x1 - x0, y1 - y0
-            blocks = []
-            for t, r in self.truth:
-                c = pymupdf.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2)
-                if x0 <= c.x <= x1 and y0 <= c.y <= y1:
-                    blocks.append({"text": t, "kind": "label", "confidence": self.conf,
-                                   "bbox": [(r.x0 - x0) / w, (r.y0 - y0) / h, (r.x1 - x0) / w, (r.y1 - y0) / h]})
-            text = json.dumps({"blocks": blocks + self.extra})
+        text = self.raw if self.raw is not None else scripted_answer(req.target_id, self.truth, self.extra, self.conf)
         return {"text": text, "tokens_in": estimate_tokens(req.messages), "tokens_out": estimate_tokens(text)}
 
 

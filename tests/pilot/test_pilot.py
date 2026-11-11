@@ -52,12 +52,13 @@ def test_end_to_end_outputs(manual, tmp_path):
     with pymupdf.open(out / "section43-vi.pdf") as vi, pymupdf.open(out / "section43-interleaved-review.pdf") as il:
         assert len(vi) == 8 and len(il) == 16
         assert "43-5" in vi[2].get_text()                    # printed page label kept in place
-    assert res.summary_line().startswith("SUMMARY: 7 of 8 pages succeeded (1 need OCR, 0 failed)")
+    assert res.summary_line().startswith("SUMMARY: 8 of 8 pages succeeded (1 read by vision, 0 failed)")
     o = by_label(res)
-    assert o["43-20"].status == "needs_ocr" and o["43-12"].status == "ok" and o["43-12"].segments > 0
+    assert o["43-20"].status == "ok" and o["43-20"].vision == "page" and o["43-12"].status == "ok"
+    assert o["43-12"].segments > 0 and o["43-12"].vision == ""
     # report and form
     rep = write_report(res, out / "pilot-report.md").read_text("utf-8")
-    assert "needs OCR (skipped)" in rep and "Leftover English" in rep and "| 43-12 |" in rep
+    assert "needs OCR" not in rep and "| page: 0 blocks, 0 flagged |" in rep and "Leftover English" in rep and "| 43-12 |" in rep
     assert "Fuse box" not in rep and "hydraulic" not in rep         # no manual text in the report
     wb = load_workbook(write_form(res, out / "review-form.xlsx"))
     ws = wb["review"]
@@ -72,15 +73,15 @@ def test_resume_makes_no_repeated_model_calls(manual, tmp_path):
     assert len(first.texts) > 0
     res, second = go(manual, out)
     assert second.texts == []
-    assert res.succeeded == 7
+    assert res.succeeded == 8
 
 
-def test_image_only_page_is_skipped_not_called(manual, tmp_path):
+def test_image_only_page_goes_to_the_vision_model_not_a_skip_path(manual, tmp_path):
     res, ad = go(manual, tmp_path / "o", pages=8)
     o = by_label(res)["43-20"]
-    assert o.status == "needs_ocr" and o.segments == 0
+    assert o.status == "ok" and o.segments == 0 and o.vision == "page" and o.vision_calls == 1
     with pymupdf.open(tmp_path / "o" / "section43-vi.pdf") as vi:
-        assert "CẦN OCR" in vi[6].get_text()
+        assert "OCR" not in vi[6].get_text()
 
 
 def test_exception_in_one_page_is_isolated_and_logged_without_text(manual, tmp_path, monkeypatch, capsys):
@@ -95,7 +96,7 @@ def test_exception_in_one_page_is_isolated_and_logged_without_text(manual, tmp_p
     o = by_label(res)
     assert o["43-5"].status == "failed" and o["43-5"].error == "ValueError"
     assert o["43-1"].status == "ok" and o["43-21"].status == "ok"
-    assert res.summary_line().startswith("SUMMARY: 6 of 8 pages succeeded (1 need OCR, 1 failed)")
+    assert res.summary_line().startswith("SUMMARY: 7 of 8 pages succeeded (1 read by vision, 1 failed)")
     err = capsys.readouterr().err
     assert "43-5: failed (ValueError)" in err and "secret" not in err
     with pymupdf.open(tmp_path / "o" / "section43-vi.pdf") as vi:
