@@ -9,9 +9,10 @@ import pymupdf
 
 from ..guard.masking import load_patterns
 from ..guard.numbers import diff_numbers
-from .fit import CascadeFit, fit_cascade, fit_text, wrap
-from .fonts import find_vi_font
-from .overlay import FONTNAME, box_extent, draw_fit, mask_rects, register_font
+from .fit import CascadeFit, fit_cascade, fit_faithful, fit_text, wrap
+from .fonts import FontSet, find_vi_font
+from .overlay import FONTNAME, box_extent, draw_faithful, draw_fit, mask_rects, mask_spans, placed_rect, register_font
+from .style import TextStyle
 
 NBSP = "\xa0"
 FIG_RE = re.compile(r"Fig\.?\s*([0-9]+(?:-[0-9]+)*)")
@@ -35,6 +36,7 @@ class Segment:
     target: str
     rotate: int = 0
     max_size: float = 10.0
+    style: TextStyle | None = None  # original style: faithful rendering when set, legacy cascade when None
 
 
 @dataclass
@@ -49,6 +51,22 @@ class SegResult:
     floor: bool = False  # shrunk to the soft floor or below
     numbers_missing: list[str] = field(default_factory=list)
     numbers_extra: list[str] = field(default_factory=list)
+    size0: float = 0.0                 # original size (faithful path only)
+    lines0: int = 0
+    lines: int = 0
+    drift: float = 0.0                 # distance of the text anchor from its original position (pt)
+    placed: tuple | None = None        # page-space rectangle the text occupies
+    font_from: str = ""
+    font_to: str = ""
+    needs_review: bool = False
+    shrunk90: bool = False             # drawn below 90 % of the original size
+    xscale: float = 1.0
+    box: tuple = ()                    # (width, height) of the original box in the reading frame
+    room: tuple = ()                   # free space (start, end, below) the renderer saw
+
+    @property
+    def ratio(self) -> float:
+        return round(self.size / self.size0, 4) if self.size0 else 1.0
 
 
 @dataclass
@@ -111,17 +129,73 @@ def figure_ref(segs: list[Segment]) -> str | None:
     return None
 
 
-def render_page(page: pymupdf.Page, segs: list[Segment], fontfile: str, soft_floor: float = 7.0,
+def _free_dir(page, rect: pymupdf.Rect, obstacles: list[pymupdf.Rect], d: str, margin: float = 6.0,
+              gap: float = 1.5) -> float:
+    """Free distance from `rect` to the nearest obstacle (or page margin) in direction l, r, u or d."""
+    if d in ("l", "r"):
+        lim = page.rect.x1 - margin - rect.x1 if d == "r" else rect.x0 - (page.rect.x0 + margin)
+        for o in obstacles:
+            if o.y0 < rect.y1 - 0.3 and o.y1 > rect.y0 + 0.3:
+                if d == "r" and o.x0 >= rect.x1 - 0.5:
+                    lim = min(lim, o.x0 - gap - rect.x1)
+                elif d == "l" and o.x1 <= rect.x0 + 0.5:
+                    lim = min(lim, rect.x0 - gap - o.x1)
+    else:
+        lim = page.rect.y1 - margin - rect.y1 if d == "d" else rect.y0 - (page.rect.y0 + margin)
+        for o in obstacles:
+            if o.x0 < rect.x1 - 0.3 and o.x1 > rect.x0 + 0.3:
+                if d == "d" and o.y0 >= rect.y1 - 0.5:
+                    lim = min(lim, o.y0 - gap - rect.y1)
+                elif d == "u" and o.y1 <= rect.y0 + 0.5:
+                    lim = min(lim, rect.y0 - gap - o.y1)
+    return max(0.0, lim)
+
+
+_START_END = {0: ("l", "r"), 180: ("r", "l"), 90: ("d", "u"), 270: ("u", "d")}
+
+
+def _frame(r: pymupdf.Rect, rot: int) -> tuple[float, float, float, float]:
+    """(along0, along1, across0, across1) of a page rect in the reading frame."""
+    if rot == 0:
+        return r.x0, r.x1, r.y0, r.y1
+    if rot == 180:
+        return -r.x1, -r.x0, -r.y1, -r.y0
+    if rot == 90:
+        return -r.y1, -r.y0, r.x0, r.x1
+    return r.y0, r.y1, -r.x1, -r.x0
+
+
+def anchor_drift(orig: pymupdf.Rect, placed: pymupdf.Rect, rot: int, align: str) -> float:
+    a0, a1, t0, _ = _frame(orig, rot)
+    b0, b1, u0, _ = _frame(placed, rot)
+    da = {"left": b0 - a0, "center": (b0 + b1) / 2 - (a0 + a1) / 2, "right": b1 - a1}[align]
+    return round((da * da + (u0 - t0) ** 2) ** 0.5, 2)
+
+
+def render_page(page: pymupdf.Page, segs: list[Segment], fontfile: "str | FontSet", soft_floor: float = 7.0,
                 hard_floor: float = 5.0, index_offset: int = 0) -> PageResult:
-    """Render segments in place. Returns per-segment results and legend info."""
+    """Render segments in place. Returns per-segment results and legend info.
+
+    Segments with `style` are redrawn faithfully (original font family, size, colour, alignment, rotation; shrink
+    floor 88 %). Segments without it use the older fixed-floor cascade.
+    """
+    fs = fontfile if isinstance(fontfile, FontSet) else FontSet(str(fontfile))
     res = PageResult(page=page.number, fig=figure_ref(segs))
     if not segs:
         return res
     rects = [pymupdf.Rect(s.bbox) for s in segs]
     obstacles = _page_obstacles(page, rects)
-    # candidate extension limits: other segments below
-    mask_rects(page, rects)
-    font = register_font(page, fontfile)
+    legacy = [r for s, r in zip(segs, rects) if s.style is None]
+    if legacy:
+        mask_rects(page, legacy)
+    precise = [pymupdf.Rect(sp) for s in segs if s.style is not None for sp in (s.style.spans or [s.bbox])]
+    if precise:
+        mask_spans(page, precise)
+    base_face = fs.face()
+    font = fs.font(base_face)
+    if any(x.style is None for x in segs):
+        register_font(page, base_face.path)
+    seen: set[str] = set()
     taken: list[pymupdf.Rect] = []
     pending_legend: list[tuple[int, str]] = []
     n_legend = 0
@@ -131,17 +205,59 @@ def render_page(page: pymupdf.Page, segs: list[Segment], fontfile: str, soft_flo
         idx = index_offset + i
         text = glue_protected(s.target)
         L, T = box_extent(r, s.rotate)
+        if s.style is not None:
+            st = s.style
+            face = fs.face(st.font, (16 if st.bold else 0) | (2 if st.italic else 0), text)
+            fnt = fs.font(face)
+            others = obstacles + [x for j, x in enumerate(rects) if j != i] + taken
+            sd, ed = _START_END[s.rotate]
+            fstart, fend = _free_dir(page, r, others, sd), _free_dir(page, r, others, ed)
+            below = _free_dir(page, r, others, "d") if s.rotate == 0 else 0.0
+            ft = fit_faithful(text, fnt, L, T, st.size, base_off=st.base_off, pitch=st.pitch, free_start=fstart,
+                              free_end=fend, align=st.align, free_below=below, lines0=st.lines,
+                              condense=s.rotate == 0)
+            sr = SegResult(idx, s.kind, ft.stage, ft.size, ft.extension, ft.overflow, size0=st.size,
+                           lines0=st.lines, lines=len(ft.lines), font_from=st.font,
+                           font_to=Path(face.path).stem, needs_review=ft.stage == "needs_review",
+                           box=(round(L, 1), round(T, 1)), room=(round(fstart, 1), round(fend, 1), round(below, 1)))
+            if s.kind == "label" and ft.overflow:
+                n_legend += 1
+                pending_legend.append((n_legend, text))
+                mk = fit_faithful(f"[{n_legend}]", fnt, L, T, st.size, base_off=st.base_off, pitch=st.pitch,
+                                  free_start=fstart, free_end=fend, align=st.align)
+                placed = draw_faithful(page, r, s.rotate, mk, face, fnt, st.align, st.color, seen)
+                sr.stage, sr.size, sr.overflow, sr.legend_n = "legend", mk.size, mk.overflow, n_legend
+                sr.needs_review = False
+                sr.lines = 1
+            else:
+                placed = draw_faithful(page, r, s.rotate, ft, face, fnt, st.align, st.color, seen)
+                if ft.extension > 0:
+                    taken.append(pymupdf.Rect(r.x0, r.y1, r.x1, r.y1 + ft.extension))
+                    content_bottom = max(content_bottom, r.y1 + ft.extension)
+            taken.append(placed)
+            sr.placed = tuple(round(v, 2) for v in placed)
+            sr.drift = anchor_drift(r, placed, s.rotate, st.align)
+            sr.shrunk90 = sr.size < 0.9 * st.size - 1e-6
+            sr.floor = ft.size <= st.size * 0.88 + 1e-3 and ft.stage not in ("ok", "widened")
+            sr.xscale = ft.xscale
+            if s.kind == "table":
+                miss, extra = diff_numbers(s.source, s.target, patterns())
+                sr.numbers_missing, sr.numbers_extra = miss, extra
+            res.segs.append(sr)
+            continue
         if s.kind == "label":
             fit = fit_text(text, font, L, T, min(s.max_size, 8.0), soft_floor)
             if fit.fits:
                 draw_fit(page, r, s.rotate, fit)
-                res.segs.append(SegResult(idx, s.kind, "overlay", fit.size))
+                res.segs.append(SegResult(idx, s.kind, "overlay", fit.size,
+                                          placed=tuple(placed_rect(r, s.rotate, fit)), lines=len(fit.lines)))
                 continue
             n_legend += 1
             pending_legend.append((n_legend, text))
             mk = fit_text(f"[{n_legend}]", font, L, T, min(s.max_size, 8.0), hard_floor, allow_wrap=False)
             draw_fit(page, r, s.rotate, mk)
-            res.segs.append(SegResult(idx, s.kind, "legend", mk.size, overflow=not mk.fits, legend_n=n_legend))
+            res.segs.append(SegResult(idx, s.kind, "legend", mk.size, overflow=not mk.fits, legend_n=n_legend,
+                                      placed=tuple(placed_rect(r, s.rotate, mk)), lines=len(mk.lines)))
             continue
         if s.kind == "table":
             c = fit_cascade(text, font, L, T, s.max_size, soft_floor, hard_floor, 0.0)
@@ -149,7 +265,8 @@ def render_page(page: pymupdf.Page, segs: list[Segment], fontfile: str, soft_flo
             stage = "cell" if c.stage == "ok" else "cell_" + c.stage
             draw_fit(page, r, s.rotate, c.fit)
             res.segs.append(SegResult(idx, s.kind, stage, c.fit.size, 0.0, c.overflow,
-                                      numbers_missing=miss, numbers_extra=extra))
+                                      numbers_missing=miss, numbers_extra=extra,
+                                      placed=tuple(placed_rect(r, s.rotate, c.fit)), lines=len(c.fit.lines)))
             continue
         free = 0.0
         if s.rotate == 0:
@@ -159,12 +276,16 @@ def render_page(page: pymupdf.Page, segs: list[Segment], fontfile: str, soft_flo
         if c.extension > 0:
             taken.append(pymupdf.Rect(r.x0, r.y1, r.x1, r.y1 + c.extension))
             content_bottom = max(content_bottom, r.y1 + c.extension)
-        res.segs.append(SegResult(idx, s.kind, c.stage, c.fit.size, c.extension, c.overflow))
+        res.segs.append(SegResult(idx, s.kind, c.stage, c.fit.size, c.extension, c.overflow,
+                                  placed=tuple(placed_rect(r, s.rotate, c.fit)), lines=len(c.fit.lines)))
 
     if pending_legend:
+        if all(x.style is not None for x in segs):
+            register_font(page, base_face.path)
         _draw_legend(page, font, pending_legend, res, content_bottom, soft_floor)
     for r_, s_ in zip(res.segs, segs):
-        r_.floor = r_.size <= soft_floor + 1e-6 and s_.max_size > soft_floor and r_.stage != "overlay"
+        if s_.style is None:
+            r_.floor = r_.size <= soft_floor + 1e-6 and s_.max_size > soft_floor and r_.stage != "overlay"
     return res
 
 
@@ -194,19 +315,18 @@ def _draw_legend(page, font, entries, res: PageResult, content_bottom: float, so
 
 
 def render_document(src: str | Path, segments: list[Segment], out: str | Path,
-                    fontfile: str | None = None, pages: list[int] | None = None,
+                    fontfile: "str | FontSet | None" = None, pages: list[int] | None = None,
                     **kw) -> list[PageResult]:
     """Render all segments into a copy of `src`; keep only `pages` (0-based) if given."""
-    ff = fontfile or find_vi_font()
-    if ff is None:
-        raise RuntimeError("no Vietnamese font found (set MANUVI_VI_FONT)")
+    ff = fontfile if isinstance(fontfile, FontSet) else FontSet(str(fontfile) if fontfile else None)
+    ff.face()  # fails early when no Vietnamese font exists
     doc = pymupdf.open(str(src))
     by_page: dict[int, list[Segment]] = {}
     for s in segments:
         by_page.setdefault(s.page, []).append(s)
     results = []
     for pno in (pages if pages is not None else range(len(doc))):
-        results.append(render_page(doc[pno], by_page.get(pno, []), str(ff), **kw))
+        results.append(render_page(doc[pno], by_page.get(pno, []), ff, **kw))
     if pages is not None:
         doc.select(pages)
     doc.subset_fonts()

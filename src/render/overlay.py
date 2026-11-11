@@ -71,3 +71,80 @@ def place_text(page: pymupdf.Page, font: pymupdf.Font, rect: pymupdf.Rect, text:
     fit = fit_text(text, font, L, T, max_size, floor, **kw)
     draw_fit(page, rect, rotate, fit)
     return fit
+
+
+# ---- faithful drawing: per-face fonts, colour, alignment, precise redaction --------------------------------------
+def mask_spans(page: pymupdf.Page, rects: list[pymupdf.Rect], inset: float = 0.2) -> None:
+    """Remove only the characters of the given span rectangles. No fill is painted (lines, shading and images
+    under the text stay), and each rectangle is shrunk vertically so a neighbouring line is never touched."""
+    n = 0
+    for r in rects:
+        r = pymupdf.Rect(r)
+        if r.height <= r.width:   # horizontal text: shrink across the lines (vertically)
+            dy = r.height * inset
+            r = pymupdf.Rect(r.x0 + 0.2, r.y0 + dy, r.x1 - 0.2, r.y1 - dy)
+        else:                     # vertical text: shrink across the lines (horizontally)
+            dx = r.width * inset
+            r = pymupdf.Rect(r.x0 + dx, r.y0 + 0.2, r.x1 - dx, r.y1 - 0.2)
+        if r.is_empty:
+            continue
+        page.add_redact_annot(r, fill=False)
+        n += 1
+    if n:
+        page.apply_redactions(images=pymupdf.PDF_REDACT_IMAGE_NONE, graphics=pymupdf.PDF_REDACT_LINE_ART_NONE)
+
+
+def register_face(page: pymupdf.Page, face, seen: set | None = None) -> None:
+    if seen is not None and face.key in seen:
+        return
+    page.insert_font(fontname=face.key, fontfile=face.path)
+    if seen is not None:
+        seen.add(face.key)
+
+
+def expand_rect(rect: pymupdf.Rect, rotate: int, start_ext: float, end_ext: float) -> pymupdf.Rect:
+    r = pymupdf.Rect(rect)
+    if rotate == 0:
+        r.x0 -= start_ext
+        r.x1 += end_ext
+    elif rotate == 180:
+        r.x1 += start_ext
+        r.x0 -= end_ext
+    elif rotate == 90:
+        r.y1 += start_ext
+        r.y0 -= end_ext
+    else:
+        r.y0 -= start_ext
+        r.y1 += end_ext
+    return r
+
+
+def _shift(p: pymupdf.Point, rotate: int, dx: float) -> pymupdf.Point:
+    return {0: pymupdf.Point(p.x + dx, p.y), 90: pymupdf.Point(p.x, p.y - dx),
+            180: pymupdf.Point(p.x - dx, p.y), 270: pymupdf.Point(p.x, p.y + dx)}[rotate]
+
+
+def draw_faithful(page: pymupdf.Page, rect: pymupdf.Rect, rotate: int, ft, face, font: pymupdf.Font, align: str,
+                  color=(0, 0, 0), seen: set | None = None) -> pymupdf.Rect:
+    """Draw fitted lines. Returns the page-space rectangle the text occupies."""
+    r2 = expand_rect(rect, rotate, ft.start_ext, ft.end_ext)
+    register_face(page, face, seen)
+    W = ft.width
+    widest = 0.0
+    for i, line in enumerate(ft.lines):
+        xs = ft.xscale if rotate == 0 else 1.0
+        lw = font.text_length(line, fontsize=ft.size) * xs
+        widest = max(widest, lw)
+        dx = 0.0 if align == "left" else (W - lw) / 2 if align == "center" else W - lw
+        p = _shift(line_origin(r2, rotate, ft.size * (ft.base + i * ft.lh)), rotate, max(dx, 0.0))
+        morph = (p, pymupdf.Matrix(xs, 0, 0, 1, 0, 0)) if xs < 0.999 else None
+        page.insert_text(p, line, fontsize=ft.size, fontname=face.key, rotate=rotate, color=color, morph=morph)
+    h = ft.size * (ft.base + (len(ft.lines) - 1) * ft.lh + ft.desc)
+    L = widest if align == "left" else W
+    if rotate == 0:
+        return pymupdf.Rect(r2.x0, r2.y0, r2.x0 + L, r2.y0 + h)
+    if rotate == 180:
+        return pymupdf.Rect(r2.x1 - L, r2.y1 - h, r2.x1, r2.y1)
+    if rotate == 90:
+        return pymupdf.Rect(r2.x0, r2.y1 - L, r2.x0 + h, r2.y1)
+    return pymupdf.Rect(r2.x1 - h, r2.y0, r2.x1, r2.y0 + L)

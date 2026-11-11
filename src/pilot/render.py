@@ -23,8 +23,9 @@ def mark_boxes(page: pymupdf.Page, boxes: list[tuple[float, float, float, float]
         page.insert_text((x + 3.2, y + 7.0), "!", fontsize=6.5, fontname="hebo", color=(1, 1, 1))
 
 
-def banner(page: pymupdf.Page, text: str, fontfile: str) -> None:
-    page.insert_font(fontname="vib", fontfile=fontfile)
+def banner(page: pymupdf.Page, text: str, fontfile) -> None:
+    path = fontfile.face().path if hasattr(fontfile, "face") else fontfile
+    page.insert_font(fontname="vib", fontfile=path)
     r = pymupdf.Rect(12, 12, page.rect.width - 12, 40)
     page.draw_rect(r, color=RED, fill=(1, 1, 1), width=1.5, dashes="[4 2] 0")
     page.insert_text((20, 30), MARK + text, fontsize=10, fontname="vib", color=RED)
@@ -35,6 +36,7 @@ def render_page(src: Path, p0: int, segs: list[Segment], review_boxes: list, out
     """Render page `p0` (0-based) alone into `out`. Returns the renderer result and the page QA entry."""
     results = render_document(src, segs, out, fontfile=fontfile, pages=[p0])
     qa = build_report(out, segs, results, include_tokens=False)["pages"][0]
+    review_boxes = list(review_boxes) + [s.bbox for s, r in zip(segs, results[0].segs) if r.needs_review]
     if review_boxes:
         tmp = out.with_suffix(".mark.pdf")
         doc = pymupdf.open(str(out))
