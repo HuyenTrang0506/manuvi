@@ -38,7 +38,7 @@ def test_json_serialisable_and_markdown_contains_sections():
     r = rep()
     json.dumps(r, ensure_ascii=False)
     md = render_markdown(r, gate(r, r))
-    for s in ("## Gate: PASS", "## Overall", "## By domain", "## By priority", "PROPOSED"):
+    for s in ("## Gate: PASS", "## Overall", "## By domain", "## By priority", "verified-usage"):
         assert s in md
 
 

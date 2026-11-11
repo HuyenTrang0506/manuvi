@@ -29,6 +29,7 @@ class Output(BaseModel):
     repaired: bool = False                 # failed the guard first, passed after the fix loop
     routed_to_review: bool = False         # still failing after the loop: NOT accepted, reported apart
     review_rules: list[str] = []           # guard rules still failing when routed
+    seconds: float = 0.0                   # wall time for this case (all calls of the fix loop)
 
 
 def score_case(case: EvalCase, out: Output, glossary: dict[str, GlossaryTerm]) -> dict[str, M.MetricResult]:
@@ -37,6 +38,7 @@ def score_case(case: EvalCase, out: Output, glossary: dict[str, GlossaryTerm]) -
         "protected_codes": M.protected_codes(case, t),
         "number_unit": M.number_unit(case, t),
         "safety_signals": M.safety_signals(case, t),
+        "kept_names": M.kept_names(case, t),
         "glossary_hit": M.glossary_hit(case, t, glossary),
         "length_ratio": M.length_ratio(case, t),
         "leakage": M.leakage(case, t, glossary),
@@ -48,7 +50,7 @@ def _aggregate(rows: list[dict]) -> dict[str, dict]:
     """rows: per-case entries. Returns metric -> {kind, value, n}. Value None when nothing applies."""
     agg: dict[str, dict] = {}
     for name in (*M.HARD, *M.SOFT):
-        kind = "hard" if name in M.HARD else "soft"
+        kind = "hard" if name in M.HARD else "near-hard" if name in M.NEAR_HARD else "soft"
         vals = [(r["metrics"][name]) for r in rows
                 if r["metrics"][name]["score"] is not None and not r.get("routed_to_review")]
         if not vals:
@@ -77,6 +79,20 @@ def _review(rows: list[dict]) -> dict:
             "routed_to_review": sum(r["routed_to_review"] for r in rows),
             "routed_ids": [r["id"] for r in rows if r["routed_to_review"]],
             "by_rule": dict(sorted(by_rule.items()))}
+
+
+def _glossary_status(g: dict[str, GlossaryTerm]) -> str:
+    named = [t for t in g.values() if t.keep_english]
+    terms = [t for t in g.values() if not t.keep_english]
+    v = sum(t.status == "verified-usage" for t in terms)
+    return (f"{v} verified-usage, {len(terms) - v} proposed (usage-checked against Vietnamese sources, no workshop "
+            f"sign-off needed), {len(named)} keep-English names")
+
+
+def _timing(outputs: dict[str, Output]) -> dict:
+    secs = [o.seconds for o in outputs.values()]
+    total = round(sum(secs), 3)
+    return {"total_seconds": total, "seconds_per_segment": round(total / len(secs), 3) if secs else 0.0}
 
 
 def build_report(cases: list[EvalCase], outputs: dict[str, Output], glossary: dict[str, GlossaryTerm], *,
@@ -129,11 +145,15 @@ def build_report(cases: list[EvalCase], outputs: dict[str, Output], glossary: di
     return {
         "schema": 1, "model": model, "set": {"sha256": set_hash(cases), "n_cases": len(cases)},
         "glossary": {"sha256": glossary_hash(glossary), "n_terms": len(glossary),
-                     "status": "PROPOSED terms, not approved by founder/uncle"},
+                     "status": _glossary_status(glossary)},
         "meta": meta or {},
         "metrics": _aggregate(rows), "consistency": cons, "review": _review(rows),
         "domains": group(lambda c: c.domains), "priorities": group(lambda c: [c.priority]),
-        "terms": dict(sorted(by_term.items())), "cost": cost, "cases": rows,
+        "terms": dict(sorted(by_term.items())), "cost": cost, "timing": _timing(outputs),
+        "leakage": {"overall_limit": M.LEAKAGE_MAX_OVERALL,
+                    "cases": {r["id"]: r["metrics"]["leakage"]["detail"]["leaked"] for r in rows
+                              if r["metrics"]["leakage"]["detail"].get("leaked") and not r["routed_to_review"]}},
+        "cases": rows,
     }
 
 
@@ -182,6 +202,14 @@ def gate(current: dict, baseline: dict, soft_tolerance_pct: float = DEFAULT_SOFT
     b_cons, c_cons = baseline["consistency"].get("score"), current["consistency"].get("score")
     if b_cons is not None and c_cons is not None and _worse_soft("consistency", c_cons, b_cons, soft_tolerance_pct):
         fails.append(f"overall: soft metric consistency {b_cons:.4f} -> {c_cons:.4f}")
+    leak = current["metrics"].get("leakage", {}).get("value")
+    if leak is not None and leak > M.LEAKAGE_MAX_OVERALL + EPS:
+        fails.append(f"overall: leakage {leak * 100:.2f}% above the {M.LEAKAGE_MAX_OVERALL * 100:.1f}% limit "
+                     "(English words left in the translation)")
+    for r in current["cases"]:
+        words = r["metrics"]["leakage"]["detail"].get("leaked")
+        if r["priority"] == "p0" and words and not r.get("routed_to_review"):
+            fails.append(f"case {r['id']} (p0) leaves English words: {', '.join(words)}")
     base_pass = {r["id"]: r["hard_pass"] for r in baseline["cases"]}
     for r in current["cases"]:
         if base_pass.get(r["id"]) and r.get("routed_to_review"):
@@ -213,6 +241,17 @@ def render_markdown(rep: dict, gate_result: Optional[GateResult] = None) -> str:
     L += ["", f"Consistency (same EN term -> same VI term): "
               f"{'n/a' if c['score'] is None else f'{c['score'] * 100:.1f}%'} "
               f"({len(c['inconsistent'])} inconsistent of {c['terms_seen']} terms)", ""]
+    if c.get("mixed_forms"):
+        L += ["Terms rendered with more than one accepted form (allowed, but pick one for the final manual): "
+              + "; ".join(f"{m['term']} ({' / '.join(m['forms'])})" for m in c["mixed_forms"][:15]), ""]
+    lk = rep.get("leakage") or {}
+    if lk.get("cases"):
+        L += ["English words left in the output (limit "
+              f"{lk['overall_limit'] * 100:.1f}% overall, 0 in p0):", ""]
+        L += [f"- {i}: {', '.join(w)}" for i, w in list(lk["cases"].items())[:30]] + [""]
+    tm = rep.get("timing") or {}
+    if tm.get("total_seconds"):
+        L += [f"Time: {tm['total_seconds']:.1f} s total, {tm['seconds_per_segment']:.2f} s per segment.", ""]
     for section, title in (("priorities", "By priority"), ("domains", "By domain")):
         L += [f"## {title}", "", "| " + section[:-1] + " | n | " + " | ".join(M.HARD + M.SOFT) + " |",
               "|---|---|" + "---|" * len(M.HARD + M.SOFT)]
