@@ -80,8 +80,12 @@ def mask_spans(page: pymupdf.Page, rects: list[pymupdf.Rect], inset: float = 0.2
     n = 0
     for r in rects:
         r = pymupdf.Rect(r)
-        dy = r.height * inset
-        r = pymupdf.Rect(r.x0 + 0.2, r.y0 + dy, r.x1 - 0.2, r.y1 - dy)
+        if r.height <= r.width:   # horizontal text: shrink across the lines (vertically)
+            dy = r.height * inset
+            r = pymupdf.Rect(r.x0 + 0.2, r.y0 + dy, r.x1 - 0.2, r.y1 - dy)
+        else:                     # vertical text: shrink across the lines (horizontally)
+            dx = r.width * inset
+            r = pymupdf.Rect(r.x0 + dx, r.y0 + 0.2, r.x1 - dx, r.y1 - 0.2)
         if r.is_empty:
             continue
         page.add_redact_annot(r, fill=False)

@@ -120,6 +120,9 @@ def test_rotated_text_keeps_direction(tmp_path):
     with pymupdf.open(str(out)) as o:
         ln = [ln for bl in o[0].get_text("dict")["blocks"] if bl.get("type") == 0 for ln in bl["lines"]][0]
     assert abs(ln["dir"][0]) < 0.1 and ln["dir"][1] < -0.9
+    with pymupdf.open(str(out)) as o:
+        assert "Vertical" not in o[0].get_text() and "Vertical" not in "".join(
+            "".join(s["text"] for s in l["spans"]) for b in o[0].get_text("dict")["blocks"] if b.get("type") == 0 for l in b["lines"])
 
 
 def test_rotated_page_runs(tmp_path):
