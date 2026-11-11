@@ -24,7 +24,7 @@ class Fit:
     lh: float = 1.15
 
 
-def wrap(text: str, font: pymupdf.Font, size: float, width: float, factor: float = 1.0) -> list[str]:
+def wrap(text: str, font: pymupdf.Font, size: float, width: float, factor: float = 1.0, tol: float = 0.0) -> list[str]:
     def w(s: str) -> float:
         return font.text_length(s, fontsize=size) * factor
 
@@ -34,7 +34,7 @@ def wrap(text: str, font: pymupdf.Font, size: float, width: float, factor: float
         if not word:
             continue
         trial = word if not cur else cur + " " + word
-        if w(trial) <= width or not cur:
+        if w(trial) <= width + tol or not cur:
             cur = trial
         else:
             lines.append(cur)
@@ -101,3 +101,95 @@ def fit_cascade(text: str, font: pymupdf.Font, box_w: float, box_h: float, max_s
     if f.fits:
         return CascadeFit(f, "hard_floor", max(0.0, f.height - box_h), False)
     return CascadeFit(f, "overflow", 0.0, True)  # nothing extended; text drawn in full, flagged
+
+
+# ---- faithful fit: keep the original size where possible, never go below floor_ratio of it ------------------------
+DESC_F = 0.212   # Arial / Liberation Sans descender, in font-size units
+FLOOR_RATIO = 0.88
+TIGHT_PITCH = 0.92
+
+
+@dataclass
+class Faithful:
+    size: float
+    lines: list[str]
+    stage: str            # ok | shrunk | widened | tight | extended | needs_review
+    width: float          # box width used (>= original width when widened)
+    start_ext: float      # widening towards the start of the line (pt)
+    end_ext: float        # widening towards the end of the line (pt)
+    lh: float             # line pitch in font-size units
+    base: float           # first baseline distance from the box edge, in font-size units
+    extension: float      # extra height used below the box (pt)
+    overflow: bool
+    height: float
+    desc: float = DESC_F
+
+
+def _sizes(size0: float, floor_ratio: float, step: float) -> list[float]:
+    floor = round(size0 * floor_ratio, 3)
+    out, s = [], size0
+    while s > floor + 1e-6:
+        out.append(round(s, 3))
+        s -= step
+    out.append(floor)
+    return out
+
+
+def fit_faithful(text: str, font: pymupdf.Font, box_w: float, box_h: float, size0: float, *, base_off: float = 0.0,
+                 pitch: float = 0.0, free_start: float = 0.0, free_end: float = 0.0, align: str = "left",
+                 free_below: float = 0.0, floor_ratio: float = FLOOR_RATIO, step: float = 0.25,
+                 tight: float = TIGHT_PITCH, width_factor: float = 1.0, lines0: int = 1) -> Faithful:
+    """Order: original size -> shrink in small steps to floor_ratio -> widen the box into free space ->
+    tighten the line pitch (x`tight`) -> extend below into free space -> needs_review (full text, overflow flagged)."""
+    base = (base_off / size0) if base_off > 0 else ASC
+    base = min(max(base, 0.6), 1.2)
+    lh0 = min(max(pitch / size0, 1.0), 1.6) if pitch > 0 else 1.15
+    lh_t = lh0 * tight
+    desc = DESC_F
+    if base_off > 0 and box_h > 0:  # the original box tells how much room below the last baseline its font reserved
+        desc = min(max((box_h - base_off - (max(lines0, 1) - 1) * lh0 * size0) / size0, 0.1), 0.4)
+    sizes = _sizes(size0, floor_ratio, step)
+    if align == "center":
+        room = 2 * min(free_start, free_end)
+    elif align == "right":
+        room = free_start
+    else:
+        room = free_end
+    room = max(room, 0.0)
+
+    def split(extra: float) -> tuple[float, float]:
+        if align == "center":
+            return extra / 2, extra / 2
+        return (extra, 0.0) if align == "right" else (0.0, extra)
+
+    def attempt(s: float, w: float, lh: float, h: float):
+        lines = wrap(text, font, s, w, width_factor, 0.4)
+        widest = max(font.text_length(x, fontsize=s) * width_factor for x in lines)
+        need = s * (base + (len(lines) - 1) * lh + desc)
+        return widest <= w + 0.4 and need <= h + 0.3, lines, need
+
+    def done(s, lines, need, w, lh, stage, ext=0.0, over=False):
+        a, b = split(max(w - box_w, 0.0))
+        return Faithful(s, lines, stage, w, a, b, lh, base, ext, over, need, desc)
+
+    for s in sizes:
+        ok, lines, need = attempt(s, box_w, lh0, box_h)
+        if ok:
+            return done(s, lines, need, box_w, lh0, "ok" if s == sizes[0] else "shrunk")
+    widths = [box_w + room * k / 8 for k in range(1, 9)] if room > 0.5 else []
+    for lh, stage in ((lh0, "widened"), (lh_t, "tight")):
+        for w in ([box_w] if stage == "tight" else []) + widths:
+            for s in sizes:
+                ok, lines, need = attempt(s, w, lh, box_h)
+                if ok:
+                    return done(s, lines, need, w, lh, stage)
+    if free_below > 0.5:
+        w = widths[-1] if widths else box_w
+        for s in sizes:
+            ok, lines, need = attempt(s, w, lh_t, box_h + free_below)
+            if ok:
+                return done(s, lines, need, w, lh_t, "extended", ext=max(0.0, need - box_h))
+    w = widths[-1] if widths else box_w
+    s = sizes[-1]
+    _, lines, need = attempt(s, w, lh_t, box_h)
+    return done(s, lines, need, w, lh_t, "needs_review", over=True)
