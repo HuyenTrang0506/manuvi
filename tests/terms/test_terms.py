@@ -150,3 +150,15 @@ def test_must_use_terms_are_injected_first_uncapped_and_match_verb_forms(tmp_pat
     assert sysmsg.index("MUST use") < sysmsg.index("tighten => siết") < sysmsg.index("Glossary (EN => VI)")
     assert "pump => bơm" in sysmsg.split("Glossary (EN => VI)")[1]
     assert select_glossary_subset("overtighten the bolt", s) == []   # no partial-word match
+
+
+def test_prompt_states_the_keep_english_rule():
+    p = build_translation_prompt("Replace the harness.", [], [], "v9")
+    sysmsg = p["messages"][0]["content"]
+    assert "Keep English ONLY for names" in sysmsg
+    for name in ("model and part names", "codes", "abbreviations (ECU, SOL, SW, GND, B+)", "wire colour codes",
+                 "brand names"):
+        assert name in sysmsg
+    assert "harness, connector, switch, relay" in sysmsg
+    assert "Never write an English term in parentheses" in sysmsg
+    assert "never leave an English word as a substitute" in sysmsg
