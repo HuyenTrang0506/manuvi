@@ -15,6 +15,7 @@ import hashlib
 import ipaddress
 import json
 import os
+import re
 import secrets
 import hmac
 import tempfile
@@ -42,12 +43,25 @@ from . import viewer as page_viewer
 MAX_UPLOAD_DEFAULT_MB = 200
 PDF_CT = "application/pdf"
 DOWNLOAD_EXT = {"vi_pdf": "pdf", "interleaved_pdf": "pdf", "segments_xlsx": "xlsx", "terms_xlsx": "xlsx"}
+BIN_CT = "application/octet-stream"
+FILE_FORMATS = ("pdf", "md", "docx", "pptx")
+FILE_CT = {"md": "text/markdown; charset=utf-8", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+           "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
+VI_FILE_RE = re.compile(r"^out/[A-Za-z0-9_-]+\.vi\.(md|docx|pptx)$")
 XLSX_CT = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+FILE_ERRORS_VI = {
+    "FILE_TOO_LARGE": "Tệp quá lớn.", "ZIP_BOMB": "Tệp bị từ chối vì kích thước giải nén bất thường.",
+    "MACRO_REJECTED": "Tệp có macro hoặc là định dạng cũ nên bị từ chối. Hãy lưu lại thành .docx hoặc .pptx không có macro.",
+    "BAD_FORMAT": "Tệp không đúng định dạng hoặc bị hỏng.", "UNSUPPORTED_FORMAT": "Định dạng này chưa được hỗ trợ.",
+}
 
 
 class CreateBody(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    sections: str = Field(min_length=1, max_length=400)
+    sections: str = Field("", max_length=400)       # required for PDF; other formats have no page sections
+    format: str = Field("pdf", max_length=8)         # pdf | md | docx | pptx
     page_map: dict[str, int] = Field(default_factory=dict)
     priority_sections: list[str] = Field(default_factory=list, max_length=20)
 
@@ -334,6 +348,9 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         """Failed-login audit entries never hold the raw user field (it may be a mistyped password)."""
         return "~" + hmac.new(audit_key, raw.strip().lower().encode("utf-8"), hashlib.sha256).hexdigest()[:12]
 
+    def vi_file_of(st: JobStatus) -> Optional[str]:
+        return next((n for n in st.outputs if VI_FILE_RE.match(n)), None)
+
     def view(rec: JobRecord, st: JobStatus) -> dict:
         eff = JobState.cancelled if store.is_cancelled(rec.id) and st.state not in TERMINAL else st.state
         return {"id": rec.id, "name": rec.name, "owner": rec.owner, "created_at": rec.created_at,
@@ -342,7 +359,8 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
                 "cost_usd": st.cost_usd, "error_code": st.error_code, "attempts": st.attempts,
                 "updated_at": st.updated_at, "page_states": st.page_states, "section_progress": st.sections,
                 "priority_sections": rec.priority_sections,
-                "outputs": {k: (v in st.outputs) for k, v in OUTPUTS.items()},
+                "format": rec.format, "outputs": {**{k: (v in st.outputs) for k, v in OUTPUTS.items()},
+                                                  "vi_file": vi_file_of(st) is not None},
                 "reviewer_can_review": rec.reviewer_can_review, "reviewer_can_read": rec.reviewer_can_read}
 
     # ---- security middleware
@@ -366,8 +384,10 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
             ct = request.headers.get("content-type", "").split(";")[0].strip().lower()
             is_pdf_put = request.method == "PUT" and path.startswith("/api/jobs/") and path.endswith("/pdf")
-            if ct != (PDF_CT if is_pdf_put else "application/json"):
-                return deny("Content-Type must be " + (PDF_CT if is_pdf_put else "application/json"))
+            is_file_put = request.method == "PUT" and path.startswith("/api/jobs/") and path.endswith("/file")
+            want = PDF_CT if is_pdf_put else BIN_CT if is_file_put else "application/json"
+            if ct != want:
+                return deny("Content-Type must be " + want)
             if path != "/api/login":
                 if sess is None:
                     return deny("sign in required", 401)
@@ -454,6 +474,10 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
     @app.post("/api/jobs")
     def create_job(request: Request, body: CreateBody):
         s = founder(request)
+        if body.format not in FILE_FORMATS:
+            raise HTTPException(422, "Unsupported file format.")
+        if body.format != "pdf":
+            body = body.model_copy(update={"sections": "1:1-1", "page_map": {}, "priority_sections": []})
         try:
             secs = parse_sections(body.sections)
         except ValueError as e:
@@ -467,7 +491,8 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
             raise HTTPException(422, "Priority sections must be among the listed sections.")
         jid = secrets.token_hex(8)
         store.put_job(JobRecord(id=jid, name=" ".join(body.name.split()), owner=s.user, sections=body.sections,
-                                page_map=body.page_map, priority_sections=list(dict.fromkeys(body.priority_sections))))
+                                page_map=body.page_map, priority_sections=list(dict.fromkeys(body.priority_sections)),
+                                format=body.format))
         audit.log(s.user, "job_create", client_ip(request), job=jid)
         return {"id": jid}
 
@@ -504,6 +529,49 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         audit.log(s.user, "upload", client_ip(request), job=job_id, bytes=size)
         return {"id": job_id, "bytes": size}
 
+    @app.put("/api/jobs/{job_id}/file")
+    async def upload_file(request: Request, job_id: str):
+        """Markdown, Word or PowerPoint upload. The job's `format` was fixed at creation; the file is validated with the
+        same size limit plus magic bytes, zip-bomb and macro checks (src/formats/detect.py) before it is stored."""
+        from src.formats import FormatError, detect_format
+        s = founder(request)
+        try:
+            valid_job_id(job_id)
+            rec = store.get_job(job_id)
+        except (ValueError, FileNotFoundError):
+            raise HTTPException(404, "job not found")
+        if rec.format == "pdf" or rec.submitted or rec.owner != s.user:
+            raise HTTPException(409, "this job does not take a file upload")
+        try:
+            declared = int(request.headers.get("content-length", "0"))
+        except ValueError:
+            raise HTTPException(400, "bad Content-Length")
+        if declared > max_bytes:
+            raise HTTPException(413, f"Tệp lớn hơn {max_upload_mb} MB.")
+        size = 0
+        with tempfile.TemporaryDirectory(dir=data_dir, prefix=".upload-") as td:
+            tmp = Path(td) / f"upload.{rec.format}"
+            with open(tmp, "wb") as fh:
+                async for chunk in request.stream():
+                    size += len(chunk)
+                    if size > max_bytes:
+                        raise HTTPException(413, f"Tệp lớn hơn {max_upload_mb} MB.")
+                    fh.write(chunk)
+            if size == 0:
+                raise HTTPException(415, "Tệp trống hoặc không đúng định dạng.")
+            try:
+                fmt = detect_format(tmp)
+            except FormatError as e:
+                audit.log(s.user, "upload_rejected", client_ip(request), job=job_id, code=e.code)
+                raise HTTPException(415 if e.code != "FILE_TOO_LARGE" else 413,
+                                    FILE_ERRORS_VI.get(e.code, "Tệp không hợp lệ."))
+            if fmt != rec.format:
+                raise HTTPException(415, "Tệp không đúng định dạng đã chọn.")
+            store.put_file(job_id, f"input.{fmt}", tmp)
+        store.put_job(rec.model_copy(update={"pdf_bytes": size}))
+        audit.log(s.user, "upload", client_ip(request), job=job_id, bytes=size, format=rec.format)
+        return {"id": job_id, "bytes": size}
+
     @app.post("/api/jobs/{job_id}/submit")
     def submit(request: Request, job_id: str):
         s = founder(request)
@@ -514,8 +582,8 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
             raise HTTPException(404, "job not found")
         if rec.submitted:
             raise HTTPException(409, "already submitted")
-        if not store.exists(job_id, "input.pdf"):
-            raise HTTPException(409, "upload the PDF first")
+        if not store.exists(job_id, "input.pdf" if rec.format == "pdf" else f"input.{rec.format}"):
+            raise HTTPException(409, "upload the file first")
         store.put_job(rec.model_copy(update={"submitted": True}))
         store.put_status(job_id, JobStatus(state=JobState.queued))
         queue.enqueue(job_id)
@@ -590,6 +658,17 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         rec, st = job_or_404(job_id)
         if s.role != "founder" and not rec.reviewer_can_read:
             raise HTTPException(403, "the founder has not allowed downloads for the reviewer role")
+        if kind == "vi_file":
+            name = vi_file_of(st)
+            if name is None:
+                raise HTTPException(404, "not available yet")
+            ext = name.rsplit(".", 1)[1]
+            audit.log(s.user, "download", client_ip(request), job=job_id, kind=kind)
+            url = store.download_url(job_id, name, name.rsplit("/", 1)[1], expires=300)
+            if url:
+                return RedirectResponse(url, status_code=302, headers={"Cache-Control": "no-store"})
+            return FileResponse(store.local_path(job_id, name), media_type=FILE_CT[ext], filename=name.rsplit("/", 1)[1],
+                                headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
         if kind not in OUTPUTS or OUTPUTS[kind] not in st.outputs:
             raise HTTPException(404, "not available yet")
         audit.log(s.user, "download", client_ip(request), job=job_id, kind=kind)

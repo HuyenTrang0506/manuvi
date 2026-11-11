@@ -83,8 +83,9 @@
       <div class="field"><label for="nm">Manual name</label><input id="nm" type="text" maxlength="120" autocomplete="off" required>
         <p class="hint">Shown in your list, for example "Excavator service manual, section 23".</p></div>
       <div class="field"><span class="lbl" id="pl">PDF file</span>
-        <label class="drop" id="drop" for="pf"><input id="pf" type="file" accept="application/pdf,.pdf" aria-describedby="ph">
-          <strong id="dn">Drop the PDF here or choose a file</strong><span class="hint" id="ph">PDF only, up to ${CFG.maxMb} MB. Stored privately; it is only ever read as a PDF.</span></label></div>
+        <label class="drop" id="drop" for="pf"><input id="pf" type="file" accept="application/pdf,.pdf,.docx,.pptx,.md,.markdown" aria-describedby="ph">
+          <strong id="dn">Drop the PDF here or choose a file</strong><span class="hint" id="ph">PDF only, up to ${CFG.maxMb} MB. Stored privately; it is only ever read as a PDF.</span>
+          <span class="hint" id="ph2">Tệp Word (.docx), PowerPoint (.pptx) hoặc Markdown (.md) cũng được: bản dịch trả về cùng định dạng. Tệp có macro bị từ chối.</span></label></div>
       <div class="field"><label for="sc">Sections to translate</label><input id="sc" type="text" placeholder="23:1-42,43:1-22" autocomplete="off" spellcheck="false" aria-describedby="sh" required>
         <p class="hint" id="sh">One or more SECTION:FIRST-LAST, separated by commas. The numbers are the printed page numbers.</p></div>
       <div class="field"><label for="pm">Page map (optional)</label><textarea id="pm" rows="3" spellcheck="false" aria-describedby="mh"></textarea>
@@ -100,10 +101,15 @@
       if (!file) { drop.removeAttribute('data-has'); $('#dn').textContent = 'Drop the PDF here or choose a file'; return; }
       drop.setAttribute('data-has', ''); $('#dn').textContent = `${file.name} (${(file.size / 1048576).toFixed(1)} MB)`;
     };
-    pf.onchange = () => setFile(pf.files[0]);
+    const fmtOf = (file) => { const m = file && /\.(pdf|docx|pptx|md|markdown)$/i.exec(file.name); return m ? (m[1].toLowerCase() === 'markdown' ? 'md' : m[1].toLowerCase()) : ''; };
+    const syncFields = () => {   // sections, page map and priority only apply to PDF manuals
+      const isPdf = !pf.files[0] || fmtOf(pf.files[0]) === 'pdf';
+      ['#sc', '#pm', '#pr'].forEach((q) => { $(q).closest('.field').hidden = !isPdf; });
+    };
+    pf.onchange = () => { setFile(pf.files[0]); syncFields(); };
     ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.setAttribute('data-over', ''); }));
     ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.removeAttribute('data-over'); }));
-    drop.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) { pf.files = e.dataTransfer.files; setFile(pf.files[0]); } });
+    drop.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) { pf.files = e.dataTransfer.files; setFile(pf.files[0]); syncFields(); } });
     f.onsubmit = async (e) => {
       e.preventDefault();
       const err = $('#ferr'); err.textContent = '';
@@ -111,10 +117,12 @@
       const bad = (msg, el) => { err.textContent = msg; el.focus(); };
       if (!name) return bad('Give the manual a name.', $('#nm'));
       if (!file) return bad('Choose the PDF to upload.', pf);
-      if (!/\.pdf$/i.test(file.name)) return bad('That file is not a PDF. Choose a file ending in .pdf.', pf);
+      const format = fmtOf(file);
+      if (!format) return bad('Tệp phải có đuôi .pdf, .docx, .pptx hoặc .md.', pf);
       if (file.size > CFG.maxMb * 1048576) return bad(`That PDF is larger than ${CFG.maxMb} MB. Split it or upload fewer sections.`, pf);
-      if (!/^[A-Za-z0-9_-]{1,16}:\d+-\d+(,[A-Za-z0-9_-]{1,16}:\d+-\d+)*$/.test(sections)) return bad('Write sections as SECTION:FIRST-LAST, for example 23:1-42,43:1-22.', $('#sc'));
+      if (format === 'pdf' && !/^[A-Za-z0-9_-]{1,16}:\d+-\d+(,[A-Za-z0-9_-]{1,16}:\d+-\d+)*$/.test(sections)) return bad('Write sections as SECTION:FIRST-LAST, for example 23:1-42,43:1-22.', $('#sc'));
       const page_map = {};
+      if (format === 'pdf')
       for (const line of $('#pm').value.split('\n').map((l) => l.trim()).filter(Boolean)) {
         const m = /^([A-Za-z0-9_-]+)\s*=\s*(\d+)$/.exec(line);
         if (!m) return bad(`Page map line "${line}" should look like 23=187.`, $('#pm'));
@@ -123,10 +131,10 @@
       const go = $('#go'); go.disabled = true; go.textContent = 'Uploading...';
       try {
         const priority_sections = $('#pr').value.split(',').map((x) => x.trim()).filter(Boolean);
-        const {id} = await api('/api/jobs', {method: 'POST', body: {name, sections, page_map, priority_sections}});
+        const {id} = await api('/api/jobs', {method: 'POST', body: {name, sections: format === 'pdf' ? sections : '', page_map, priority_sections, format}});
         await new Promise((resolve, reject) => {
-          const x = new XMLHttpRequest(); x.open('PUT', `/api/jobs/${id}/pdf`);
-          x.setRequestHeader('Content-Type', 'application/pdf'); x.setRequestHeader('X-Manuvi-Token', CFG.token);
+          const x = new XMLHttpRequest(); x.open('PUT', `/api/jobs/${id}/${format === 'pdf' ? 'pdf' : 'file'}`);
+          x.setRequestHeader('Content-Type', format === 'pdf' ? 'application/pdf' : 'application/octet-stream'); x.setRequestHeader('X-Manuvi-Token', CFG.token);
           const bar = $('#up'); bar.hidden = false;
           x.upload.onprogress = (ev) => { if (ev.lengthComputable) { bar.style.setProperty('--v', ev.loaded / ev.total); bar.setAttribute('aria-valuenow', Math.round(100 * ev.loaded / ev.total)); } };
           x.onload = () => { if (x.status < 300) resolve(); else { let d = ''; try { d = JSON.parse(x.responseText).detail; } catch (_) {} reject(new Error(d || 'Upload failed (' + x.status + ')')); } };
@@ -143,6 +151,7 @@
   }
 
   /* ---- one manual */
+  const DL_FILE = [['vi_file', 'Bản dịch tiếng Việt (cùng định dạng với tệp gốc)'], ['segments_xlsx', 'Segments (Excel)'], ['terms_xlsx', 'Terms (Excel)']];
   const DL = [['vi_pdf', 'Vietnamese PDF'], ['interleaved_pdf', 'English and Vietnamese pages, side by side'], ['segments_xlsx', 'Segments (Excel)'], ['terms_xlsx', 'Terms (Excel)']];
   function jobHtml(j) {
     const translated = j.chunks ? j.chunks - j.pending : 0;
@@ -171,7 +180,7 @@
     ${isFounder ? `<div class="field"><label class="cb check"><input id="ra" type="checkbox" ${j.reviewer_can_review ? 'checked' : ''}> Let the reviewer approve non-safety segments</label><p class="hint">Safety segments always need the founder.</p></div>` : ''}
     </section>
     <section class="section" aria-labelledby="dh"><h2 id="dh">Downloads</h2>
-      <div class="dl">${DL.map(([k, t]) => j.outputs[k] ? `<a class="btn" href="/download/${esc(j.id)}/${k}">${esc(t)}</a>` : `<span class="btn" aria-disabled="true">${esc(t)}<span class="sr"> (not ready yet)</span></span>`).join('')}</div>
+      <div class="dl">${(j.format && j.format !== 'pdf' ? DL_FILE : DL).map(([k, t]) => j.outputs[k] ? `<a class="btn" href="/download/${esc(j.id)}/${k}">${esc(t)}</a>` : `<span class="btn" aria-disabled="true">${esc(t)}<span class="sr"> (not ready yet)</span></span>`).join('')}</div>
       ${Object.values(j.outputs).some(Boolean) ? '' : '<p class="hint">Files appear here when the translation is ready.</p>'}
     </section>`;
   }
