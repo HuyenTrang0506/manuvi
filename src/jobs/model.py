@@ -71,6 +71,7 @@ class JobRecord(BaseModel):
     sections: str                                   # "23:1-42,43:1-22"
     page_map: dict[str, int] = Field(default_factory=dict)
     pdf_name: str = "input.pdf"
+    format: str = "pdf"                             # pdf | md | docx | pptx (src/formats); non-PDF input is stored as input.<format>
     pdf_bytes: int = 0
     reviewer_can_review: bool = False               # founder allows the reviewer to read segments and approve non-safety ones
     reviewer_can_read: bool = False                 # founder also allows the reviewer to download outputs (default: no)

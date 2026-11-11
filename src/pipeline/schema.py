@@ -27,6 +27,11 @@ class Chunk(BaseModel):
     section: str = ""
     source: str
     kind: Optional[Kind] = None  # classify fills it when missing
+    # Non-PDF formats (src/formats): literal strings to mask like codes, the file format ("md"|"docx"|"pptx"; turns on
+    # the inline-tag and leakage checks) and a short context hint for the translator (never translated).
+    protect: list[str] = Field(default_factory=list)
+    fmt: str = ""
+    ctx: str = ""
 
     @field_validator("id")
     @classmethod

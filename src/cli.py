@@ -9,11 +9,13 @@ from src.terms.cli import app as _terms_app
 from src.manuvi_cli import aws_app as _aws_app
 from src.eval.cli import app as _eval_app
 from src.pilot.cli import pilot as _pilot_cmd
+from src.formats.cli import translate_file_cmd as _translate_file_cmd
 from src.render.fidelity_cli import fidelity as _fidelity_cmd
 
 app = typer.Typer(help="Manuvi: EN -> VI technical manual translation.")
 app.command("intake")(_intake_cmd)
 app.command("pilot")(_pilot_cmd)
+app.command("translate-file")(_translate_file_cmd)
 app.command("fidelity")(_fidelity_cmd)
 app.add_typer(_pipeline_app, name="pipeline")
 app.add_typer(_terms_app, name="terms")
