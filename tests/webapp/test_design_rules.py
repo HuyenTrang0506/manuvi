@@ -7,8 +7,8 @@ import pytest
 
 STATIC = Path(__file__).resolve().parents[2] / "src" / "webapp" / "static"
 CSS = (STATIC / "brand.css").read_text("utf-8")
-PAGES = {n: (STATIC / n).read_text("utf-8") for n in ("login.html", "portal.html", "index.html")}
-JS = {n: (STATIC / n).read_text("utf-8") for n in ("common.js", "portal.js", "review.js", "login.js")}
+PAGES = {n: (STATIC / n).read_text("utf-8") for n in ("login.html", "portal.html", "index.html", "viewer.html")}
+JS = {n: (STATIC / n).read_text("utf-8") for n in ("common.js", "portal.js", "review.js", "login.js", "viewer.js")}
 
 
 # ---- parsing
@@ -252,7 +252,7 @@ def test_text_resize_and_zoom_allowed():
     for h in PAGES.values():
         assert "user-scalable=no" not in h and "maximum-scale" not in h
         assert 'width=device-width,initial-scale=1' in h
-        assert 'lang="en"' in h
+        assert 'lang="en"' in h or 'lang="vi"' in h
 
 
 def test_no_external_resources_and_no_inline_style_or_script():

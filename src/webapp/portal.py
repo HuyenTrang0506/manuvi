@@ -37,6 +37,7 @@ from .pages import HEADERS, render, render_review_page, static_file
 from .review import build_review_router
 from .review import STALE_MSG
 from .store import JobStore, StaleError
+from . import viewer as page_viewer
 
 MAX_UPLOAD_DEFAULT_MB = 200
 PDF_CT = "application/pdf"
@@ -643,4 +644,5 @@ def create_portal_app(*, auth: Auth, store: Store, queue: Queue, data_dir: str |
         return render_review_page(s.csrf, prefix=f"/api/jobs/{job_id}", role=s.role, user=s.user, job_id=job_id,
                                   can_review=True)
 
+    page_viewer.install(app, store=store, data_dir=data_dir, job_or_404=job_or_404, audit=audit, client_ip=client_ip)
     return app

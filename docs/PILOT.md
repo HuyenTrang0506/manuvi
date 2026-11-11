@@ -22,7 +22,7 @@ Without the script: `manuvi pilot --pdf manual.pdf --section 43 --pages 10 --mod
 1. Finds the pages of the section by their printed labels (`43-12`), so non-consecutive pages work.
 2. Classifies them (prose, table, diagram) and picks the sample deterministically: all page types are covered, spread across the section. The same manual and `--pages` give the same pages.
 3. Translates each page on its own with the guard (codes, numbers and safety words are protected). Each page is checkpointed: run again and finished pages cost zero model calls.
-4. Renders the Vietnamese text in place on the original page. Page labels, part and connector codes and short abbreviations stay as printed.
+4. Renders the Vietnamese text in place on the original page, in the original font family, size, colour, alignment and rotation (rules and measurements: `docs/FIDELITY.md`). Page labels, part and connector codes and short abbreviations stay as printed.
 
 5. Text that has no text layer is read by a local vision-language model, not by OCR (founder decision). Per page the pilot measures text-layer coverage: a page with no or unusable text (image-only scan, unmapped glyphs, a picture with a few words) is read as a whole; on a page that has text, only picture areas without any text-layer text are read, as cropped regions. The model returns text blocks with boxes. Those blocks are translated and drawn like normal blocks. A block with low confidence, a box outside the page or overlapping another, a foreign script (CJK unless the page has Japanese) or a code that looks misread is marked `[!]` in the PDF and listed in the report; a block with a foreign script or an unplaceable box is only listed, never translated or drawn. Details: `docs/VISION.md`.
 
@@ -34,7 +34,7 @@ A failure on one page is logged by error class only (never page text) and the ru
 |---|---|
 | `section43-vi.pdf` | Main deliverable: Vietnamese only, original layout. Same page count as the sample. |
 | `section43-interleaved-review.pdf` | Original page, then its Vietnamese page. Review aid only. |
-| `pilot-report.md` | Per page: type, segments, repaired, routed to review, leftover English words, vision (`page`/`regions`, blocks read, blocks flagged, skipped or failed reads), layout flags (`overflow`, `font_below_min`, `legend_fallback`, `vision_incomplete`), seconds. Lists every routed segment and every flagged vision block (reasons only, no text). |
+| `pilot-report.md` | Per page: type, segments, repaired, routed to review, leftover English words, vision (`page`/`regions`, blocks read, blocks flagged, skipped or failed reads), layout flags (`overflow`, `font_below_min` = a block drawn below 90 % of its original size, `layout_needs_review`, `legend_fallback`, `vision_incomplete`), seconds. Lists every routed segment and every flagged vision block (reasons only, no text). |
 | `review-form.xlsx` | One row per page for the workshop. |
 | `work/` | Checkpoints. Delete the folder to start from scratch. |
 

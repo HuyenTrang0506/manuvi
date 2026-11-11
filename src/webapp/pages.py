@@ -20,7 +20,7 @@ HEADERS = {"Cache-Control": "no-store", "X-Frame-Options": "DENY", "X-Content-Ty
 def static_file(name: str) -> FileResponse:
     p = (STATIC / name).resolve()
     if p.suffix not in ASSET_TYPES or not p.is_file() or not p.is_relative_to(STATIC.resolve()) \
-            or p.name in ("index.html", "login.html", "portal.html"):
+            or p.name in ("index.html", "login.html", "portal.html", "viewer.html"):
         raise HTTPException(404, "not found")
     return FileResponse(p, media_type=ASSET_TYPES[p.suffix],
                         headers={"Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff"})

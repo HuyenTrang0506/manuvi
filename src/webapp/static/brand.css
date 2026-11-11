@@ -212,3 +212,29 @@ kbd{border:1px solid var(--rule-strong);border-bottom-width:2px;border-radius:va
 }
 .check{font-weight:400;gap:var(--s-2);justify-content:flex-start}
 .prio{color:var(--accent);border-color:var(--accent);background:var(--accent-wash)}
+
+/* page viewer: original and Vietnamese page side by side */
+.vtitle{font-size:var(--t-md);margin:0;font-family:var(--font-ui);font-weight:600;color:var(--ink-2)}
+.vwrap{max-width:none;margin:0 auto;padding:var(--s-3) var(--s-4) var(--s-6)}
+.vtools{display:flex;flex-wrap:wrap;gap:var(--s-2);align-items:center;margin-bottom:var(--s-2)}
+.vtools input[type=text]{width:9rem}
+.vpos,.vzoom{color:var(--ink-2);font-size:var(--t-sm)}
+.vsep{width:1px;align-self:stretch;background:var(--rule)}
+.vpanes{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-4);margin-top:var(--s-3);align-items:start}
+@media(max-width:700px){.vpanes{grid-template-columns:1fr}}
+.vpane{background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r-2);padding:var(--s-2);min-width:0}
+.vpane.wide{grid-column:1/-1}
+.vpane h2{display:flex;align-items:center;gap:var(--s-2);font-family:var(--font-ui);font-size:var(--t-sm);margin:0 0 var(--s-2)}
+.vscroll{overflow:auto;max-height:calc(100vh - 14rem);min-height:12rem;background:var(--sunk);border-radius:var(--r-1)}
+.vpage{position:relative;display:inline-block;line-height:0;background:var(--sheet)}
+.vimg{display:block;max-width:none;height:auto}
+.vstack{isolation:isolate;filter:invert(1)}
+.vstack .vtop{position:absolute;left:0;top:0;mix-blend-mode:difference}
+.vmark{position:absolute;border:2px dashed var(--warn);background:transparent;pointer-events:none}
+.vmark[data-t=text]{border-color:var(--err)}
+.vmark b{position:absolute;left:-2px;top:-14px;min-width:14px;height:14px;line-height:14px;text-align:center;font:700 var(--t-xs) var(--font-ui);background:var(--warn);color:var(--paper)}
+.vmark[data-t=text] b{background:var(--err)}
+.vnote{margin:var(--s-3)}
+.pg{cursor:pointer}
+.pg[aria-current=page]{outline:3px solid var(--accent);outline-offset:1px}
+.l-done::before{content:"\2713\00a0"}.l-review::before{content:"\25B2\00a0"}

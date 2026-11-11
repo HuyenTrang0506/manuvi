@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Manuvi - xem từng trang</title>
+<link rel="stylesheet" href="/static/brand.css">
+<link rel="icon" href="/static/mark.svg" type="image/svg+xml">
+</head>
+<body>
+<a class="skip" href="#main">Chuyển tới nội dung</a>
+<header class="top">
+  <a class="brand" href="/" aria-label="Manuvi, quay lại danh sách"><svg class="logo" width="148" height="34" viewBox="0 0 148 34" role="img" aria-label="Manuvi" focusable="false"><path class="mark-page" d="M5 3h14l8 8v20H5z"/><path class="mark-page" d="M19 3v8h8"/><rect class="mark-en" x="9" y="16" width="14" height="3" rx="1"/><rect class="mark-vi" x="9" y="22" width="9" height="3" rx="1"/><text class="wm" x="36" y="25">manuvi</text></svg></a>
+  <h1 class="vtitle" id="title"></h1>
+  <div class="who"><span id="who"></span><a href="/">Tất cả tài liệu</a></div>
+</header>
+<main class="vwrap" id="main" tabindex="-1">
+  <div class="vtools" role="toolbar" aria-label="Công cụ xem trang">
+    <button type="button" id="prev" aria-label="Trang trước">&#8592; Trước</button>
+    <label class="sr" for="goto">Đi tới trang</label>
+    <input type="text" id="goto" list="labels" placeholder="Ví dụ 43-12" autocomplete="off" inputmode="text" aria-describedby="gotoHint">
+    <datalist id="labels"></datalist>
+    <button type="button" id="next" aria-label="Trang sau">Sau &#8594;</button>
+    <span class="vpos" id="pos" aria-live="polite"></span>
+    <span class="vsep" aria-hidden="true"></span>
+    <button type="button" id="zout" aria-label="Thu nhỏ">&#8722;</button>
+    <button type="button" id="zfit" aria-label="Vừa chiều rộng">Vừa khung</button>
+    <button type="button" id="zin" aria-label="Phóng to">+</button>
+    <span class="vzoom" id="zoomval" aria-live="polite"></span>
+    <label class="cb check"><input type="checkbox" id="sync" checked> Cuộn đồng bộ</label>
+    <label class="cb check"><input type="checkbox" id="diff"> Chồng ảnh so sánh</label>
+    <label class="cb check"><input type="checkbox" id="marks" checked> Hiện chỗ cần xem lại</label>
+    <a class="btn" id="dl" href="#" hidden>Tải PDF bản dịch</a>
+  </div>
+  <p class="hint" id="gotoHint">Gõ nhãn trang in trên tài liệu, rồi nhấn Enter.</p>
+  <div class="strip" id="strip" role="list" aria-label="Các trang"></div>
+  <div class="legend" aria-hidden="true"><span class="l-done">đã dịch</span><span class="l-review">cần xem lại</span><span>chưa dịch</span></div>
+  <div class="vpanes" id="panes" aria-busy="true"><span class="sk tall"></span></div>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script type="application/json" id="cfg">__MANUVI_CONFIG__</script>
+<script src="/static/common.js"></script>
+<script src="/static/viewer.js"></script>
+</body></html>
