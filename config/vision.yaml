@@ -1,0 +1,23 @@
+# Vision-language reading of pages without a usable text layer (src/intake/vision_read.py).
+# Env override: MANUVI_VISION_<FIELD>, e.g. MANUVI_VISION_MAX_CALLS_PER_JOB=10.
+# Local models cost $0, so the caps are calls and seconds per job; the gateway still enforces money caps.
+target_long_px: 1800
+dpi_min: 110
+dpi_max: 250
+dense_dpi: 220
+max_tile_px: 2048
+tile_overlap: 0.08
+min_confidence: 0.5
+bbox_tolerance: 0.01
+# Boxes are asked in 0..1. Qwen3-VL answers in 0..1000 relative coordinates (UNVERIFIED here, check with
+# scripts/mac/vision_smoke.sh); if the smoke test fails on boxes, set bbox_scale: 1000.
+bbox_scale: 1.0
+max_calls_per_job: 40
+max_seconds_per_job: 900
+max_regions_per_page: 12
+max_tokens: 4096
+min_density_pt2_per_char: 3.0
+min_page_chars: 10
+min_image_area_frac: 0.004
+min_image_px: 48
+sparse_chars_per_10k_pt2: 3.0

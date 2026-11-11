@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # One command for the Section 43 pilot on the Mac: local Ollama, $0, safe to re-run (it resumes).
 # usage: scripts/mac/run_pilot.sh [manual.pdf]
-# env:   MANUVI_PILOT_MODEL (ollama:<tag>), MANUVI_PILOT_PAGES (default 10), MANUVI_PILOT_OUT
+# env:   MANUVI_PILOT_MODEL (ollama:<tag>), MANUVI_PILOT_VISION_MODEL (ollama:<tag>), MANUVI_PILOT_PAGES (default 10),
+#        MANUVI_PILOT_OUT
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -53,9 +54,17 @@ if ! ollama show "$TAG" >/dev/null 2>&1; then
   ollama pull "$TAG"
 fi
 
+# Vision model: only pages without a text layer (scans, pictures inside diagrams) need it. Not downloaded here.
+VMODEL="${MANUVI_PILOT_VISION_MODEL:-$("$ROOT/.venv/bin/python" -c \
+  "from src.llm_gateway.config import resolve_config as r; print(r({'MANUVI_PROFILE': 'qa'}).models['vision'])")}"
+VTAG="${VMODEL#ollama:}"
+if ! ollama show "$VTAG" >/dev/null 2>&1; then
+  echo "Note: vision model $VTAG is not installed; pages without a text layer will fail. Try it with scripts/mac/vision_smoke.sh"
+fi
+
 # 4. Run (resumes automatically when the output folder already has finished pages)
 status=0
-"$MANUVI" pilot --pdf "$PDF" --section 43 --pages "$PAGES" --model "$MODEL" --out "$OUT" || status=$?
+"$MANUVI" pilot --pdf "$PDF" --section 43 --pages "$PAGES" --model "$MODEL" --vision-model "$VMODEL" --out "$OUT" || status=$?
 
 if command -v open >/dev/null 2>&1; then
   open "$OUT"

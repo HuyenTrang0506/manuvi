@@ -60,6 +60,9 @@ class Worker:
         self.batch_size, self.approve_batches, self.budget = batch_size, approve_batches, budget_usd
         self.max_attempts = max_attempts
         self.stop = threading.Event()        # SIGTERM / SIGINT
+        self._status_lock = threading.RLock()  # serialises status read-modify-write (main thread vs heartbeat)
+        self._halt: Optional[threading.Event] = None
+        self._beat_thread: Optional[threading.Thread] = None
         self._cancel = threading.Event()     # founder cancelled the job
         self._lost = threading.Event()       # visibility lost to another worker
 
@@ -85,10 +88,19 @@ class Worker:
 
     # ---- status helpers
     def _status(self, job_id: str, state: JobState, **kw) -> JobStatus:
-        st = self.store.get_status(job_id)
-        st = st.model_copy(update={"state": state, "updated_at": utcnow(), "worker": self.id, **kw})
-        self.store.put_status(job_id, st)
-        return st
+        with self._status_lock:
+            st = self.store.get_status(job_id)
+            st = st.model_copy(update={"state": state, "updated_at": utcnow(), "worker": self.id, **kw})
+            self.store.put_status(job_id, st)
+            return st
+
+    def _quiesce(self) -> None:
+        """Stop the heartbeat before any terminal/waiting status write so it cannot overwrite it with 'running'."""
+        if self._halt is not None:
+            self._halt.set()
+        t = self._beat_thread
+        if t is not None and t.is_alive() and t is not threading.current_thread():
+            t.join(timeout=5)
 
     def _progress(self, job_id: str, work: Path) -> dict:
         try:
@@ -216,8 +228,11 @@ class Worker:
             try:
                 if self.store.is_cancelled(job_id):
                     self._cancel.set()
-                self._merge_segments(job_id, work)
-                self._status(job_id, JobState.running, **self._progress(job_id, work))
+                with self._status_lock:
+                    if halt.is_set():
+                        return
+                    self._merge_segments(job_id, work)
+                    self._status(job_id, JobState.running, **self._progress(job_id, work))
             except Exception as e:
                 log.warning("sync failed: %s", type(e).__name__)
 
@@ -244,6 +259,7 @@ class Worker:
         work.mkdir(parents=True, exist_ok=True)
         halt = threading.Event()
         beat = threading.Thread(target=self._beat, args=(msg, job_id, work, halt), daemon=True)
+        self._halt, self._beat_thread = halt, beat
         outcome = "failed"
         try:
             self._status(job_id, JobState.running if st.state not in TERMINAL else JobState.done,
@@ -287,6 +303,7 @@ class Worker:
             res = run_job(work, gateway=gw, job_id=job_id, batch_size=self.batch_size,
                           approve_batches=self.approve_batches, budget_usd=self.budget, emit=emit)
         except StopRequested:
+            self._quiesce()
             self._merge_segments(job_id, work)
             self._push_state(job_id, work)
             if self._lost.is_set():
@@ -298,6 +315,7 @@ class Worker:
             self._status(job_id, JobState.queued, **self._progress(job_id, work))
             self.queue.release(msg)  # graceful stop: someone else resumes from the checkpoint
             return "interrupted"
+        self._quiesce()
         prog = self._progress(job_id, work)
         self._merge_segments(job_id, work)
         self._push_state(job_id, work)

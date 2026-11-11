@@ -11,7 +11,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
-DEFAULT_SET = DATA_DIR / "electrical_v1.jsonl"
+DEFAULT_SET = DATA_DIR / "electrical_v2.jsonl"
 DEFAULT_GLOSSARY = DATA_DIR / "electrical_terms_proposed.csv"
 
 
@@ -33,6 +33,7 @@ class EvalCase(BaseModel):
     expected_terms: list[str] = []                  # EN glossary keys that must appear in VI
     protected: list[str] = []                       # strings that must survive byte for byte
     reference_vi: Optional[str] = None              # optional human reference
+    keep: list[str] = []                            # names/abbreviations that must stay in English (ECU, SOL, GND, B+)
     notes: str = ""
 
     @field_validator("source", "reference_vi")
@@ -40,14 +41,17 @@ class EvalCase(BaseModel):
     def _nfc(cls, v):
         return nfc(v) if isinstance(v, str) else v
 
-    @field_validator("protected")
+    @field_validator("protected", "keep")
     @classmethod
     def _nfc_list(cls, v):
         return [nfc(x) for x in v]
 
 
 def canonical(case: EvalCase) -> str:
-    return json.dumps(case.model_dump(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    d = case.model_dump()
+    if not d.get("keep"):
+        d.pop("keep", None)   # keeps the hash of sets written before the field existed (v1) unchanged
+    return json.dumps(d, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def set_hash(cases: list[EvalCase]) -> str:
@@ -101,6 +105,13 @@ class GlossaryTerm(BaseModel):
     forbidden_vi: list[str] = []
     note: str = ""
     must_use_in_prompt: bool = False   # inject into the prompt whenever the term occurs (verbs, key nouns)
+    variants_vi: list[str] = []        # other accepted workshop spellings/synonyms (glossary_hit accepts them)
+    source: str = ""                   # where the usage was checked (URLs separated by " ; ")
+    keep_english: bool = False         # true names/abbreviations only (ECU, SOL, GND, B+): VI form == EN form
+
+    @property
+    def vi_forms(self) -> list[str]:
+        return [self.term_vi, *self.variants_vi]
 
 
 def load_glossary(path: Path | str = DEFAULT_GLOSSARY) -> dict[str, GlossaryTerm]:
@@ -114,6 +125,9 @@ def load_glossary(path: Path | str = DEFAULT_GLOSSARY) -> dict[str, GlossaryTerm
                              domain=row.get("domain", "electrical") or "electrical",
                              forbidden_vi=[nfc(x.strip()) for x in (row.get("forbidden_vi") or "").split("|") if x.strip()],
                              note=row.get("note", ""),
+                             variants_vi=[nfc(x.strip()) for x in (row.get("variants_vi") or "").split("|") if x.strip()],
+                             source=(row.get("source") or "").strip(),
+                             keep_english=(row.get("keep_english") or "").strip().lower() in ("yes", "true", "1", "y", "x"),
                              must_use_in_prompt=(row.get("must_use_in_prompt") or "").strip().lower() in ("yes", "true", "1", "y", "x"))
             out[" ".join(t.term_en.split()).casefold()] = t
     return out

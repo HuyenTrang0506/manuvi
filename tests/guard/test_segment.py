@@ -99,7 +99,9 @@ def test_fix_messages_shape():
     assert msgs[-2] == {"role": "assistant", "content": "bad"} and msgs[-1]["content"].startswith("FIX (attempt 1)")
 
 
-def test_signal_table_marked_proposed_pending_approval():
+def test_signal_table_is_usage_verified_with_sources():
     cfg = yaml.safe_load((Path(__file__).resolve().parents[2] / "config" / "signal_words.yaml").read_text("utf-8"))
-    assert cfg["status"] == "proposed" and "founder" in cfg["approval"] and not cfg.get("approved_by")
+    assert cfg["status"] == "verified-usage" and "usage" in cfg["approval"]
+    assert set(cfg["verification"]) == set(cfg["signal_words"])
+    assert all(v["status"] == "verified-usage" and v["sources"] for v in cfg["verification"].values())
     assert cfg["signal_words"]["CAUTION"] == "THẬN TRỌNG"

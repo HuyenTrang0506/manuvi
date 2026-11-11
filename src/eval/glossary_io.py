@@ -8,11 +8,12 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
 README = [
-    "PROPOSED electrical terms for the Kobelco manual (EN -> VI).",
-    "Every Vietnamese term here is a PROPOSAL written by the engineering side. NOTHING is approved.",
-    "Reviewer (founder / uncle): fill reviewer_decision with approve | change | reject, write your term in reviewer_vi "
-    "when you change it, and add a comment.",
-    "Do not edit term_en or status. Approval is recorded by import into the term store (needs a citation and an approver).",
+    "Electrical terms for the Kobelco manual (EN -> VI), checked against how Vietnamese mechanics and textbooks write.",
+    "status = verified-usage: at least one Vietnamese source (column source) uses the term. status = proposed: no "
+    "source found yet; see note. Workshop sign-off is NOT required while usage matches; a mechanic may still change a term.",
+    "variants_vi lists accepted spellings and synonyms (separated by |). The eval metric accepts them.",
+    "keep_english = yes: true names and abbreviations (ECU, SOL, GND, B+) stay in English. Every other term has a Vietnamese form.",
+    "Reviewer (optional): fill reviewer_decision with approve | change | reject and write your term in reviewer_vi.",
     "Keep one Vietnamese term per English term across the whole manual (consistency is measured).",
 ]
 
@@ -36,8 +37,8 @@ def write_glossary_xlsx(csv_path: Path | str, xlsx_path: Path | str) -> Path:
         for c in row:
             if isinstance(c.value, str):
                 c.data_type = "s"  # never interpreted as a formula
-        row[2].fill = PatternFill("solid", fgColor="FFF2CC")  # status = proposed
-    for col, w in zip("ABCDEFGHIJ", (30, 32, 11, 12, 18, 48, 16, 28, 36, 14)):
+        row[2].fill = PatternFill("solid", fgColor="E2EFDA" if row[2].value == "verified-usage" else "FFF2CC")
+    for col, w in zip("ABCDEFGHIJKLM", (30, 32, 15, 12, 18, 48, 16, 28, 36, 14, 36, 60, 12)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
     xlsx_path = Path(xlsx_path)

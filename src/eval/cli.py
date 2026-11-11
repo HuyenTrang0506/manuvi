@@ -44,6 +44,9 @@ def run(
     if write_baseline:
         write_baseline.parent.mkdir(parents=True, exist_ok=True)
         write_baseline.write_text((r.run_dir / "report.json").read_text(encoding="utf-8"), encoding="utf-8")
+    tm = r.report.get("timing") or {}
+    if tm.get("total_seconds"):
+        typer.echo(f"  time {tm['total_seconds']:.1f} s total, {tm['seconds_per_segment']:.2f} s/segment")
     if r.gate is not None:
         typer.echo("GATE " + ("PASS" if r.gate.ok else "FAIL"))
         for f in r.gate.failures:
