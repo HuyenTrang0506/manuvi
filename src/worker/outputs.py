@@ -7,7 +7,10 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from src.render.interleave import interleave
+import pymupdf
+
 from src.render.page import Segment, render_document
+from src.render.style import style_for_box
 from src.terms.excel_io import _safe, write_terms_xlsx
 from src.terms.store import TermRecord
 
@@ -56,13 +59,22 @@ def build_outputs(work: Path, pdf: Path, segs: list[dict]) -> tuple[list[str], s
     spec = json.loads((work / JOBSPEC_FILE).read_text("utf-8"))
     pages0 = sorted({layout[s["id"]]["page0"] for s in segs if s["id"] in layout})
     render_segs = []
+    src_doc = pymupdf.open(str(pdf))
     for s in segs:
         lay = layout.get(s["id"])
         if not lay or not (s.get("target") or "").strip() or s.get("decision") == "rejected" \
                 or s.get("status") == "error":
             continue
         kind = s.get("kind") if s.get("kind") in ("table", "label") else "prose"
-        render_segs.append(Segment(lay["page0"], tuple(lay["bbox"]), kind, s["source"], s["target"]))
+        seg = Segment(lay["page0"], tuple(lay["bbox"]), kind, s["source"], s["target"])
+        try:  # original font, size, colour, alignment and rotation: the page is redrawn like the original
+            got = style_for_box(src_doc[lay["page0"]], seg.bbox)
+        except Exception:
+            got = None
+        if got:
+            seg.style, seg.rotate, seg.max_size = got[0], got[1], got[0].size
+        render_segs.append(seg)
+    src_doc.close()
     if not pages0:
         return names, "NO_TEXT_PAGES"
     try:
@@ -76,7 +88,7 @@ def build_outputs(work: Path, pdf: Path, segs: list[dict]) -> tuple[list[str], s
                 if attempt:
                     raise
                 for r in render_segs:
-                    r.kind = "prose"
+                    r.kind, r.style = "prose", None
         interleave(pdf, out / "vi.pdf", out / "interleaved.pdf", src_pages=pages0)
     except RuntimeError:  # no Vietnamese font
         return names, "NO_VI_FONT"

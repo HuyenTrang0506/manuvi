@@ -17,7 +17,7 @@ from src.llm_gateway.config import resolve_config
 from src.pipeline.demo import write_chunks
 from src.pipeline.runner import make_gateway, run_job
 from src.pipeline.schema import SEGMENTS_FILE, TRACE_FILE
-from src.render.fonts import find_vi_font
+from src.render.fonts import FontSet, find_vi_font
 from src.render.interleave import interleave
 from src.render.page import Segment
 
@@ -154,15 +154,19 @@ def _page(pdf: Path, sp: SectionPage, section: str, work: Path, vi_dir: Path, mo
             text = (R.MARK if routed else "") + target
             ec = EvalCase(id=u.id, source=u.text, domains=["pilot"], protected=list(keep))
             o.leaked += len(leakage(ec, target).detail.get("leaked", []))
-        render_segs.append(Segment(p0, u.bbox, u.kind, u.text, text, rotate=u.rotate, max_size=u.max_size))
+        render_segs.append(Segment(p0, u.bbox, u.kind, u.text, text, rotate=u.rotate, max_size=u.max_size,
+                                   style=u.style))
         if routed:
             boxes.append(u.bbox)
     pr, qa = R.render_page(pdf, p0, render_segs, boxes, out_pdf, fontfile)
     o.qa_status = qa["status"]
     if "overflow" in qa["errors"] or any(r.overflow for r in pr.segs):
         o.flags.append("overflow")
-    if any(r.floor or r.stage.endswith("hard_floor") or r.size < min_size for r in pr.segs):
+    if any(r.shrunk90 if r.size0 else (r.floor or r.stage.endswith("hard_floor") or r.size < min_size)
+           for r in pr.segs):
         o.flags.append("font_below_min")
+    if any(r.needs_review for r in pr.segs):
+        o.flags.append("layout_needs_review")
     if pr.legend:
         o.flags.append("legend_fallback")
     for e in qa["errors"]:
@@ -180,8 +184,10 @@ def run_pilot(pdf: Path, section: str, pages: int, out: Path, *, model: Optional
     if profile not in ("dev", "qa"):
         raise PilotError("the pilot runs local models only (profile dev or qa)")
     model_name = resolve_model(profile, model)
-    font = fontfile or (str(find_vi_font()) if find_vi_font() else None)
-    if not font:
+    font = FontSet(fontfile) if fontfile else FontSet()
+    try:
+        font.face()
+    except RuntimeError:
         raise PilotError("no Vietnamese font found; set MANUVI_VI_FONT to a .ttf file")
     model_env = {"MANUVI_MODEL_BULK": model_name, "MANUVI_MODEL_STRONG": model_name} if model else {}
     try:
