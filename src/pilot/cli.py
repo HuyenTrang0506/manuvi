@@ -3,25 +3,23 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-import httpx
 import typer
+
+from src.llm_gateway.local import OllamaUnreachable, installed_ollama_models, ollama_has
 
 from .report import write_form, write_report
 from .run import PilotError, resolve_model, run_pilot
 
-OLLAMA = "http://localhost:11434"
-
-
-def _preflight(model: str) -> None:
+def _preflight(model: str, what: str = "model") -> None:
     if not model.startswith("ollama:"):
         return
     tag = model.split(":", 1)[1]
     try:
-        names = {m["name"] for m in httpx.get(f"{OLLAMA}/api/tags", timeout=5).json().get("models", [])}
-    except Exception:
-        raise PilotError("Ollama is not reachable on localhost:11434. Start it with `ollama serve`.")
-    if tag not in names and f"{tag}:latest" not in names:
-        raise PilotError(f"model {tag} is not installed. Run `ollama pull {tag}`.")
+        names = installed_ollama_models()
+    except OllamaUnreachable:
+        raise PilotError("Ollama is not reachable on this machine. Start it with `ollama serve`.")
+    if not ollama_has(tag, names):
+        raise PilotError(f"{what} {tag} is not installed. Run `ollama pull {tag}`.")
 
 
 def pilot(

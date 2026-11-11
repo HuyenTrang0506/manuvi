@@ -1,26 +1,29 @@
-"""Batch Vision GPT: đọc từng hình sơ đồ → bảng EN→VI.
+"""Batch vision legends: đọc từng hình sơ đồ → bảng EN→VI.
 
 Chạy toàn bộ figures (resume được). Kết quả:
   workspace/<doc>/translations/vision_legends/<figure_id>.json
   workspace/<doc>/translations/vision_legends/_manifest.json
 
-Cần OPENAI_API_KEY (hoặc ANTHROPIC_API_KEY).
+Mọi lệnh gọi model đi qua LLM gateway (alias `vision`, data_class=customer): chỉ model local/private
+(vd. Ollama) được nhận ảnh; gateway từ chối free hosted API (ADR-010). Module này không giữ API key
+và không import SDK/HTTP client của model.
 """
 
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
-import os
 import re
 import time
-import urllib.error
-import urllib.request
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from src.ingest.parser import load_document
+from src.llm_gateway import DataClassViolation, Gateway, LLMRequest, NotConfigured
+
+PROMPT_VERSION = "vision-legend-v2"
 
 MIN_LABELS_THRESHOLD = 8          # images > SPARSE_BYTES must have ≥ this many labels
 SPARSE_BYTES = 50_000             # 50 KB — below this, few labels are acceptable
@@ -63,20 +66,6 @@ Lần này hãy QUÉT KỸ TOÀN BỘ ảnh từ góc trên-trái đến góc d�
 - VIEW/SECTION labels, mọi hướng dẫn IN HOA
 Không được bỏ sót chữ nào có nghĩa kỹ thuật cho thợ sửa máy.
 """
-
-
-def _load_dotenv(workspace: Path) -> None:
-    for candidate in (workspace / ".env", workspace.parent / ".env", Path.cwd() / ".env"):
-        if not candidate.exists():
-            continue
-        for line in candidate.read_text(encoding="utf-8", errors="ignore").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            k, v = k.strip(), v.strip().strip('"').strip("'")
-            if k and k not in os.environ:
-                os.environ[k] = v
 
 
 @dataclass
@@ -199,97 +188,29 @@ def _parse_json_content(text: str) -> Dict[str, Any]:
     return json.loads(text)
 
 
-def _openai_vision(
-    *,
-    image_b64: str,
-    media_type: str,
-    user_text: str,
-    model: str,
-    api_key: str,
-    timeout: int = 180,
-) -> Dict[str, Any]:
-    body = {
-        "model": model,
-        "temperature": 0.1,
-        "response_format": {"type": "json_object"},
-        "messages": [
+def _gateway_vision(gateway: Gateway, *, figure_id: str, image_b64: str, media_type: str, user_text: str,
+                    job_id: str) -> Tuple[Dict[str, Any], str]:
+    """One vision call through the gateway. Returns (parsed JSON, model id actually used)."""
+    req = LLMRequest(
+        messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": user_text},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{media_type};base64,{image_b64}",
-                            "detail": "high",
-                        },
-                    },
-                ],
-            },
+            {"role": "user", "content": [
+                {"type": "text", "text": user_text + "\n\nTrả JSON thuần theo schema đã nêu."},
+                {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_b64}"}},
+            ]},
         ],
-    }
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=json.dumps(body).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        },
-        method="POST",
+        response_format={"type": "json_object"},
+        model_alias="vision",
+        data_class="customer",
+        job_id=job_id,
+        target_id=figure_id,
+        prompt_version=PROMPT_VERSION,
+        source_hash=hashlib.sha256(image_b64.encode("ascii")).hexdigest(),
+        temperature=0.1,
+        max_tokens=8192,
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
-    content = payload["choices"][0]["message"]["content"]
-    return _parse_json_content(content)
-
-
-def _anthropic_vision(
-    *,
-    image_b64: str,
-    media_type: str,
-    user_text: str,
-    model: str,
-    api_key: str,
-    timeout: int = 180,
-) -> Dict[str, Any]:
-    body = {
-        "model": model,
-        "max_tokens": 8192,
-        "temperature": 0.1,
-        "system": SYSTEM_PROMPT,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_b64,
-                        },
-                    },
-                    {"type": "text", "text": user_text + "\n\nTrả JSON thuần theo schema đã nêu."},
-                ],
-            }
-        ],
-    }
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=json.dumps(body).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-        },
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
-    parts = payload.get("content") or []
-    text = "".join(p.get("text", "") for p in parts if p.get("type") == "text")
-    return _parse_json_content(text)
+    out = gateway.complete(req)
+    return _parse_json_content(out.text), out.model_id
 
 
 def _user_prompt(job: Dict[str, Any], *, retry: bool = False) -> str:
@@ -311,10 +232,13 @@ def process_one(
     workspace: Path,
     job: Dict[str, Any],
     *,
-    model: str,
+    model: str = "",
     force: bool = False,
     sleep_s: float = 0.5,
+    gateway: Optional[Gateway] = None,
 ) -> VisionLegendResult:
+    """`model` is only a label for cached/failed results; the model used is the gateway's `vision` alias."""
+    gateway = gateway or Gateway()
     fid = job["figure_id"]
     out = result_path(workspace, fid)
     if out.exists() and not force:
@@ -349,27 +273,12 @@ def process_one(
     img_bytes = job.get("bytes", img_path.stat().st_size if img_path.exists() else 0)
     media_type, b64 = _encode_image_jpeg(img_path)
 
-    openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-
-    if not openai_key and not anthropic_key:
-        raise RuntimeError(
-            "Thiếu API key. Set OPENAI_API_KEY hoặc ANTHROPIC_API_KEY (hoặc file .env)."
-        )
+    job_id = f"vision-legend:{workspace.name}"
 
     def _call_vision(user_text: str) -> tuple:
-        """Call whichever vision API is available. Returns (data_dict, used_model)."""
-        if openai_key:
-            m = model if model.startswith(("gpt", "o")) else "gpt-4o"
-            d = _openai_vision(
-                image_b64=b64, media_type=media_type, user_text=user_text, model=m, api_key=openai_key
-            )
-            return d, m
-        m = model if model.startswith("claude") else "claude-sonnet-4-20250514"
-        d = _anthropic_vision(
-            image_b64=b64, media_type=media_type, user_text=user_text, model=m, api_key=anthropic_key
-        )
-        return d, m
+        """Returns (data_dict, used_model)."""
+        return _gateway_vision(gateway, figure_id=fid, image_b64=b64, media_type=media_type,
+                               user_text=user_text, job_id=job_id)
 
     def _parse_labels(data: Dict[str, Any]) -> List[VisionLabel]:
         out: List[VisionLabel] = []
@@ -420,6 +329,8 @@ def process_one(
         )
         # Attach validation status as extra field via manual payload merge
         res._validation_status = validation_status  # type: ignore[attr-defined]
+    except (DataClassViolation, NotConfigured):
+        raise  # policy/setup problems are never recorded as a figure error
     except Exception as e:
         res = VisionLegendResult(
             figure_id=fid,
@@ -613,14 +524,15 @@ def load_merged_vision_legend(workspace: Path, figure_id: str) -> Optional[Dict[
 def run_batch(
     workspace: Path,
     *,
-    model: str = "gpt-4o",
+    model: str = "",
     force: bool = False,
     only: Optional[List[str]] = None,
     sleep_s: float = 0.8,
     min_bytes: int = 8_000,
     progress_cb=None,
+    gateway: Optional[Gateway] = None,
 ) -> List[VisionLegendResult]:
-    _load_dotenv(workspace)
+    gateway = gateway or Gateway()
     jobs = list_figure_jobs(workspace, min_bytes=min_bytes)
     if only:
         want = set(only)
@@ -630,7 +542,7 @@ def run_batch(
     for i, job in enumerate(jobs, 1):
         if progress_cb:
             progress_cb(i, total, job)
-        res = process_one(workspace, job, model=model, force=force, sleep_s=sleep_s)
+        res = process_one(workspace, job, model=model, force=force, sleep_s=sleep_s, gateway=gateway)
         results.append(res)
     write_manifest(workspace, results)
     return results
