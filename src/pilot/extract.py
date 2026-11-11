@@ -135,7 +135,7 @@ def vision_units(page: pymupdf.Page, blocks, first: int = 1) -> tuple[list[Unit]
         vis = to_visible(page, pymupdf.Rect(b.bbox))
         size = max(5.0, min(11.0, 0.8 * min(vis.width, vis.height)))
         units.append(Unit(f"V{first + len(units):03d}", _VISION_KIND.get(b.kind, "label"), text,
-                          tuple(round(float(v), 2) for v in b.bbox), rot, size, "vision", tuple(b.reasons)))
+                          tuple(round(float(v), 2) for v in b.bbox), rot, size, source="vision", reasons=tuple(b.reasons)))
     return units, kept, reported
 
 
