@@ -60,6 +60,9 @@ class SegResult:
     font_to: str = ""
     needs_review: bool = False
     shrunk90: bool = False             # drawn below 90 % of the original size
+    xscale: float = 1.0
+    box: tuple = ()                    # (width, height) of the original box in the reading frame
+    room: tuple = ()                   # free space (start, end, below) the renderer saw
 
     @property
     def ratio(self) -> float:
@@ -211,17 +214,19 @@ def render_page(page: pymupdf.Page, segs: list[Segment], fontfile: "str | FontSe
             fstart, fend = _free_dir(page, r, others, sd), _free_dir(page, r, others, ed)
             below = _free_dir(page, r, others, "d") if s.rotate == 0 else 0.0
             ft = fit_faithful(text, fnt, L, T, st.size, base_off=st.base_off, pitch=st.pitch, free_start=fstart,
-                              free_end=fend, align=st.align, free_below=below, lines0=st.lines)
+                              free_end=fend, align=st.align, free_below=below, lines0=st.lines,
+                              condense=s.rotate == 0)
             sr = SegResult(idx, s.kind, ft.stage, ft.size, ft.extension, ft.overflow, size0=st.size,
                            lines0=st.lines, lines=len(ft.lines), font_from=st.font,
-                           font_to=Path(face.path).stem, needs_review=ft.stage == "needs_review")
-            if s.kind == "label" and ft.stage == "needs_review":
+                           font_to=Path(face.path).stem, needs_review=ft.stage == "needs_review",
+                           box=(round(L, 1), round(T, 1)), room=(round(fstart, 1), round(fend, 1), round(below, 1)))
+            if s.kind == "label" and ft.overflow:
                 n_legend += 1
                 pending_legend.append((n_legend, text))
                 mk = fit_faithful(f"[{n_legend}]", fnt, L, T, st.size, base_off=st.base_off, pitch=st.pitch,
                                   free_start=fstart, free_end=fend, align=st.align)
                 placed = draw_faithful(page, r, s.rotate, mk, face, fnt, st.align, st.color, seen)
-                sr.stage, sr.size, sr.overflow, sr.legend_n = "legend", mk.size, mk.stage == "needs_review", n_legend
+                sr.stage, sr.size, sr.overflow, sr.legend_n = "legend", mk.size, mk.overflow, n_legend
                 sr.needs_review = False
                 sr.lines = 1
             else:
@@ -233,7 +238,8 @@ def render_page(page: pymupdf.Page, segs: list[Segment], fontfile: "str | FontSe
             sr.placed = tuple(round(v, 2) for v in placed)
             sr.drift = anchor_drift(r, placed, s.rotate, st.align)
             sr.shrunk90 = sr.size < 0.9 * st.size - 1e-6
-            sr.floor = ft.size <= st.size * 0.88 + 1e-3 and ft.stage != "ok"
+            sr.floor = ft.size <= st.size * 0.88 + 1e-3 and ft.stage not in ("ok", "widened")
+            sr.xscale = ft.xscale
             if s.kind == "table":
                 miss, extra = diff_numbers(s.source, s.target, patterns())
                 sr.numbers_missing, sr.numbers_extra = miss, extra

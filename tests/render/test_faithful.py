@@ -193,14 +193,35 @@ def test_cascade_order():
     w = f.text_length(t, fontsize=10)
     ok = fit_faithful(t, f, w + 5, 12, 10, base_off=9.05)
     assert ok.stage == "ok" and ok.size == 10
+    wd = fit_faithful(t, f, w * 0.7, 12, 10, base_off=9.05, free_end=w * 0.4)
+    assert wd.stage == "widened" and wd.end_ext > 0 and wd.start_ext == 0 and wd.size == 10   # widen before shrinking
     sh = fit_faithful(t, f, w * 0.95, 12, 10, base_off=9.05)
     assert sh.stage == "shrunk" and 8.8 <= sh.size < 10
-    wd = fit_faithful(t, f, w * 0.7, 12, 10, base_off=9.05, free_end=w * 0.4)
-    assert wd.stage == "widened" and wd.end_ext > 0 and wd.start_ext == 0
     cw = fit_faithful(t, f, w * 0.7, 12, 10, base_off=9.05, free_start=w, free_end=w, align="center")
     assert cw.stage == "widened" and abs(cw.start_ext - cw.end_ext) < 1e-6
     tight = fit_faithful(t, f, w * 0.55, 21.5, 10, base_off=9.05, pitch=11.5)
     assert tight.stage in ("tight", "ok", "shrunk") and tight.lh <= 1.15
+    cond = fit_faithful(t, f, w * 0.86, 12, 10, base_off=9.05)          # one line, 14 % too long even at 88 %
+    assert cond.stage == "condensed" and cond.size >= 8.8 and 0.8 <= cond.xscale < 1 and len(cond.lines) == 1
+    assert fit_faithful(t, f, w * 0.86, 12, 10, base_off=9.05, condense=False).stage == "needs_review"
     bad = fit_faithful(t, f, w * 0.3, 12, 10, base_off=9.05)
-    assert bad.stage == "needs_review" and bad.overflow and bad.size == pytest.approx(8.8)
+    assert bad.stage == "needs_review" and bad.size < 8.8
     assert "".join(bad.lines).replace(" ", "") == t.replace(" ", "")   # never truncated
+    hopeless = fit_faithful(t, f, 8, 12, 10, base_off=9.05)
+    assert hopeless.stage == "needs_review" and hopeless.overflow
+
+
+def test_condensed_text_is_drawn_narrower_but_same_height(tmp_path):
+    def b(p):
+        p.insert_text((30, 60), "Voltage check between the connector and the body", fontsize=10, fontname="helv")
+        p.draw_line((190, 40), (190, 80), width=1)          # border right after the cell: no room to widen
+    src = make_pdf(tmp_path / "c.pdf", b)
+    with pymupdf.open(str(src)) as d:
+        units, _ = page_units(d[0])
+    u = units[0]
+    seg = Segment(0, (30.0, u.bbox[1], 188.0, u.bbox[3]), "table", u.text, "Kiểm tra điện áp giữa đầu nối và thân máy", style=u.style, max_size=10)
+    out = tmp_path / "o.pdf"
+    res = render_document(src, [seg], out, fontfile=FontSet(), pages=[0])[0].segs[0]
+    assert res.stage == "condensed" and res.size == 10 and res.xscale < 1
+    sp = spans(out)[0]
+    assert sp["bbox"][2] <= 188.6 and abs((sp["bbox"][3] - sp["bbox"][1]) - 11.17) < 0.5   # narrower, same line height

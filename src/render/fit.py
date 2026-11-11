@@ -113,7 +113,7 @@ TIGHT_PITCH = 0.92
 class Faithful:
     size: float
     lines: list[str]
-    stage: str            # ok | shrunk | widened | tight | extended | needs_review
+    stage: str            # ok | widened | shrunk | tight | condensed | extended | needs_review
     width: float          # box width used (>= original width when widened)
     start_ext: float      # widening towards the start of the line (pt)
     end_ext: float        # widening towards the end of the line (pt)
@@ -123,6 +123,7 @@ class Faithful:
     overflow: bool
     height: float
     desc: float = DESC_F
+    xscale: float = 1.0   # horizontal scale of the glyphs (condensed stage)
 
 
 def _sizes(size0: float, floor_ratio: float, step: float) -> list[float]:
@@ -135,12 +136,19 @@ def _sizes(size0: float, floor_ratio: float, step: float) -> list[float]:
     return out
 
 
+XSCALES = (0.92, 0.88, 0.84, 0.80)   # condensed stage: horizontal glyph scale, mild first
+SUB_FLOOR = 0.6                      # last resort (needs_review) may go down to this share of the original size
+
+
 def fit_faithful(text: str, font: pymupdf.Font, box_w: float, box_h: float, size0: float, *, base_off: float = 0.0,
                  pitch: float = 0.0, free_start: float = 0.0, free_end: float = 0.0, align: str = "left",
                  free_below: float = 0.0, floor_ratio: float = FLOOR_RATIO, step: float = 0.25,
-                 tight: float = TIGHT_PITCH, width_factor: float = 1.0, lines0: int = 1) -> Faithful:
-    """Order: original size -> shrink in small steps to floor_ratio -> widen the box into free space ->
-    tighten the line pitch (x`tight`) -> extend below into free space -> needs_review (full text, overflow flagged)."""
+                 tight: float = TIGHT_PITCH, lines0: int = 1, condense: bool = True) -> Faithful:
+    """Keep the original size; when the text is longer, in this order:
+    widen the box into free space (original size) -> shrink in small steps to floor_ratio (88 %) -> shrink and widen ->
+    tighten the line pitch (x`tight`) -> condense the glyphs horizontally (down to 80 %) -> extend downward into free
+    space -> needs_review: smaller than the floor (never below 60 %) so that nothing overlaps; the full text is always
+    drawn, overflow is reported only when even that does not fit."""
     base = (base_off / size0) if base_off > 0 else ASC
     base = min(max(base, 0.6), 1.2)
     lh0 = min(max(pitch / size0, 1.0), 1.6) if pitch > 0 else 1.15
@@ -149,12 +157,7 @@ def fit_faithful(text: str, font: pymupdf.Font, box_w: float, box_h: float, size
     if base_off > 0 and box_h > 0:  # the original box tells how much room below the last baseline its font reserved
         desc = min(max((box_h - base_off - (max(lines0, 1) - 1) * lh0 * size0) / size0, 0.1), 0.4)
     sizes = _sizes(size0, floor_ratio, step)
-    if align == "center":
-        room = 2 * min(free_start, free_end)
-    elif align == "right":
-        room = free_start
-    else:
-        room = free_end
+    room = {"center": 2 * min(free_start, free_end), "right": free_start}.get(align, free_end)
     room = max(room, 0.0)
 
     def split(extra: float) -> tuple[float, float]:
@@ -162,34 +165,56 @@ def fit_faithful(text: str, font: pymupdf.Font, box_w: float, box_h: float, size
             return extra / 2, extra / 2
         return (extra, 0.0) if align == "right" else (0.0, extra)
 
-    def attempt(s: float, w: float, lh: float, h: float):
-        lines = wrap(text, font, s, w, width_factor, 0.4)
-        widest = max(font.text_length(x, fontsize=s) * width_factor for x in lines)
+    def attempt(s: float, w: float, lh: float, h: float, xs: float = 1.0):
+        lines = wrap(text, font, s, w, xs, 0.4)
+        widest = max(font.text_length(x, fontsize=s) * xs for x in lines)
         need = s * (base + (len(lines) - 1) * lh + desc)
         return widest <= w + 0.4 and need <= h + 0.3, lines, need
 
-    def done(s, lines, need, w, lh, stage, ext=0.0, over=False):
+    def done(s, lines, need, w, lh, stage, ext=0.0, over=False, xs=1.0):
         a, b = split(max(w - box_w, 0.0))
-        return Faithful(s, lines, stage, w, a, b, lh, base, ext, over, need, desc)
+        return Faithful(s, lines, stage, w, a, b, lh, base, ext, over, need, desc, xs)
 
-    for s in sizes:
+    widths = [box_w + room * k / 8 for k in range(1, 9)] if room > 0.5 else []
+    all_w = [box_w] + widths
+    wmax = all_w[-1]
+    for w in all_w:                                   # original size, then widen
+        ok, lines, need = attempt(sizes[0], w, lh0, box_h)
+        if ok:
+            return done(sizes[0], lines, need, w, lh0, "ok" if w == box_w else "widened")
+    for s in sizes[1:]:                               # shrink, box as it was
         ok, lines, need = attempt(s, box_w, lh0, box_h)
         if ok:
-            return done(s, lines, need, box_w, lh0, "ok" if s == sizes[0] else "shrunk")
-    widths = [box_w + room * k / 8 for k in range(1, 9)] if room > 0.5 else []
-    for lh, stage in ((lh0, "widened"), (lh_t, "tight")):
-        for w in ([box_w] if stage == "tight" else []) + widths:
-            for s in sizes:
-                ok, lines, need = attempt(s, w, lh, box_h)
-                if ok:
-                    return done(s, lines, need, w, lh, stage)
-    if free_below > 0.5:
-        w = widths[-1] if widths else box_w
-        for s in sizes:
-            ok, lines, need = attempt(s, w, lh_t, box_h + free_below)
+            return done(s, lines, need, box_w, lh0, "shrunk")
+    for s in sizes[1:]:                               # shrink and widen
+        for w in widths:
+            ok, lines, need = attempt(s, w, lh0, box_h)
             if ok:
-                return done(s, lines, need, w, lh_t, "extended", ext=max(0.0, need - box_h))
-    w = widths[-1] if widths else box_w
-    s = sizes[-1]
-    _, lines, need = attempt(s, w, lh_t, box_h)
-    return done(s, lines, need, w, lh_t, "needs_review", over=True)
+                return done(s, lines, need, w, lh0, "widened")
+    for s in sizes:                                   # tighter line pitch
+        for w in all_w:
+            ok, lines, need = attempt(s, w, lh_t, box_h)
+            if ok:
+                return done(s, lines, need, w, lh_t, "tight")
+    if condense:
+        for s in sizes:
+            for xs in XSCALES:
+                for w in all_w:
+                    ok, lines, need = attempt(s, w, lh_t, box_h, xs)
+                    if ok:
+                        return done(s, lines, need, w, lh_t, "condensed", xs=xs)
+    if free_below > 0.5:
+        for s in sizes:
+            ok, lines, need = attempt(s, wmax, lh_t, box_h + free_below)
+            if ok:
+                return done(s, lines, need, wmax, lh_t, "extended", ext=max(0.0, need - box_h))
+    low = max(5.0, size0 * SUB_FLOOR)
+    s = sizes[-1] - step
+    xs = XSCALES[-1] if condense else 1.0
+    while s >= low - 1e-9:
+        ok, lines, need = attempt(s, wmax, lh_t, box_h + max(free_below, 0.0), xs)
+        if ok:
+            return done(s, lines, need, wmax, lh_t, "needs_review", ext=max(0.0, need - box_h), xs=xs)
+        s -= step
+    _, lines, need = attempt(max(low, 1.0), wmax, lh_t, box_h, xs)
+    return done(max(low, 1.0), lines, need, wmax, lh_t, "needs_review", over=True, xs=xs)

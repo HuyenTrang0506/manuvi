@@ -106,7 +106,7 @@ def simulate_page(pdf: Path, p0: int, engine: str, fontset: FontSet, keep_to: Pa
                        "size0": r.size0, "size": round(r.size, 2), "ratio": r.ratio, "drift": r.drift,
                        "lines0": r.lines0, "lines": r.lines, "stage": r.stage, "overflow": bool(r.overflow),
                        "legend": r.stage == "legend", "needs_review": r.needs_review, "below90": r.shrunk90,
-                       "growth": round(grow, 3)})
+                       "growth": round(grow, 3), "box": list(r.box), "room": list(r.room)})
     return {"blocks": blocks, "kept": kept, "overlaps": _overlaps(segs, pr.segs), "legend_page": pr.legend}
 
 

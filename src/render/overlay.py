@@ -128,11 +128,13 @@ def draw_faithful(page: pymupdf.Page, rect: pymupdf.Rect, rotate: int, ft, face,
     W = ft.width
     widest = 0.0
     for i, line in enumerate(ft.lines):
-        lw = font.text_length(line, fontsize=ft.size)
+        xs = ft.xscale if rotate == 0 else 1.0
+        lw = font.text_length(line, fontsize=ft.size) * xs
         widest = max(widest, lw)
         dx = 0.0 if align == "left" else (W - lw) / 2 if align == "center" else W - lw
         p = _shift(line_origin(r2, rotate, ft.size * (ft.base + i * ft.lh)), rotate, max(dx, 0.0))
-        page.insert_text(p, line, fontsize=ft.size, fontname=face.key, rotate=rotate, color=color)
+        morph = (p, pymupdf.Matrix(xs, 0, 0, 1, 0, 0)) if xs < 0.999 else None
+        page.insert_text(p, line, fontsize=ft.size, fontname=face.key, rotate=rotate, color=color, morph=morph)
     h = ft.size * (ft.base + (len(ft.lines) - 1) * ft.lh + ft.desc)
     L = widest if align == "left" else W
     if rotate == 0:
