@@ -20,7 +20,7 @@ Without the script: `manuvi pilot --pdf manual.pdf --section 43 --pages 10 --mod
 1. Finds the pages of the section by their printed labels (`43-12`), so non-consecutive pages work.
 2. Classifies them (prose, table, diagram) and picks the sample deterministically: all page types are covered, spread across the section. The same manual and `--pages` give the same pages.
 3. Translates each page on its own with the guard (codes, numbers and safety words are protected). Each page is checkpointed: run again and finished pages cost zero model calls.
-4. Renders the Vietnamese text in place on the original page. Page labels, part and connector codes and short abbreviations stay as printed.
+4. Renders the Vietnamese text in place on the original page, in the original font family, size, colour, alignment and rotation (rules and measurements: `docs/FIDELITY.md`). Page labels, part and connector codes and short abbreviations stay as printed.
 
 A page with no text layer is reported as `needs OCR` and skipped. A failure on one page is logged by error class only (never page text) and the run continues. The last line says how many pages succeeded.
 
@@ -30,7 +30,7 @@ A page with no text layer is reported as `needs OCR` and skipped. A failure on o
 |---|---|
 | `section43-vi.pdf` | Main deliverable: Vietnamese only, original layout. Same page count as the sample. |
 | `section43-interleaved-review.pdf` | Original page, then its Vietnamese page. Review aid only. |
-| `pilot-report.md` | Per page: type, segments, repaired, routed to review, leftover English words, layout flags (`overflow`, `font_below_min`, `legend_fallback`), seconds. Lists every routed segment. |
+| `pilot-report.md` | Per page: type, segments, repaired, routed to review, leftover English words, layout flags (`overflow`, `font_below_min` = a block drawn below 90 % of its original size, `layout_needs_review`, `legend_fallback`), seconds. Lists every routed segment. |
 | `review-form.xlsx` | One row per page for the workshop. |
 | `work/` | Checkpoints. Delete the folder to start from scratch. |
 
