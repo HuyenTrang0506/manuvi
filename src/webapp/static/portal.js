@@ -162,6 +162,7 @@
     ${sectionTable(j)}
     <section class="section" aria-labelledby="ah"><h2 id="ah">Actions</h2><div class="actions">
       ${canReview ? `<a class="btn primary" href="/review/${esc(j.id)}">${isFounder ? 'Review segments' : 'Read segments'}</a>` : ''}
+      ${j.outputs.vi_pdf && (isFounder || j.reviewer_can_read) ? `<a class="btn" href="/view/${esc(j.id)}">Xem từng trang</a>` : ''}
       ${isFounder && j.state === 'needs_review' ? '<button id="resume" type="button">Continue after my approvals</button>' : ''}
       ${isFounder && j.state === 'done' ? '<button id="resume" type="button">Rebuild files from my approvals</button>' : ''}
       ${isFounder && !['done', 'failed', 'cancelled'].includes(j.state) ? '<button id="cancel" class="danger" type="button">Cancel job</button>' : ''}
