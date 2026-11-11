@@ -1,0 +1,87 @@
+"""Text units of one page with their geometry. Page labels and pure codes stay untouched (not translated)."""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+
+import pymupdf
+
+from src.guard.masking import load_patterns
+from src.intake.jobspec import LABEL_RX
+
+MAX_CHARS = 4000
+_WORD = re.compile(r"(?<![\w])[A-Za-z]{3,}(?![\w])")
+_LABEL_ONLY = re.compile(r"\d{1,2}-\d{1,3}")
+
+
+@dataclass
+class Unit:
+    id: str
+    kind: str                       # prose | table | label
+    text: str
+    bbox: tuple[float, float, float, float]
+    rotate: int = 0
+    max_size: float = 10.0
+
+
+def needs_translation(text: str) -> bool:
+    """False for page labels, codes, numbers and short all-caps abbreviations (ECU, GND, ON)."""
+    t = text.strip()
+    if not t or _LABEL_ONLY.fullmatch(t):
+        return False
+    for _, rx in load_patterns():
+        t = rx.sub(" ", t)
+    return any(not (w.isupper() and len(w) <= 3) for w in _WORD.findall(t))
+
+
+def _rotation(d) -> int:
+    horizontal = abs(d[0]) >= abs(d[1])
+    if horizontal:
+        return 0 if d[0] >= 0 else 180
+    return 90 if d[1] < 0 else 270
+
+
+def page_units(page: pymupdf.Page) -> tuple[list[Unit], int]:
+    """(units to translate, count of text blocks kept as they are)."""
+    units: list[Unit] = []
+    kept = 0
+    cells: list[pymupdf.Rect] = []
+    tables: list[pymupdf.Rect] = []
+
+    def add(kind, text, rect, rot=0, size=10.0):
+        nonlocal kept
+        text = " ".join(text.split())[:MAX_CHARS]
+        if not needs_translation(text):
+            kept += 1
+            return
+        units.append(Unit(f"C{len(units) + 1:03d}", kind, text, tuple(round(float(v), 2) for v in rect),
+                          rot, size))
+
+    try:
+        for tab in page.find_tables().tables:
+            tables.append(pymupdf.Rect(tab.bbox))
+            for row in tab.rows:
+                for c in row.cells:
+                    if c is None:
+                        continue
+                    r = pymupdf.Rect(c)
+                    txt = " ".join(w[4] for w in page.get_text("words", clip=r))
+                    if txt.strip():
+                        cells.append(r)
+                        add("table", txt, r, 0, 8.0)
+    except Exception:
+        pass
+    for b in page.get_text("dict")["blocks"]:
+        if b.get("type") != 0:
+            continue
+        r = pymupdf.Rect(b["bbox"])
+        if any(r in c or (r & c).get_area() > 0.5 * r.get_area() for c in cells + tables):
+            continue
+        lines = b["lines"]
+        txt = " ".join("".join(s["text"] for s in ln["spans"]) for ln in lines).strip()
+        if not txt:
+            continue
+        size = max(s["size"] for ln in lines for s in ln["spans"])
+        kind = "prose" if len(txt) > 40 and len(lines) > 1 else "label"
+        add(kind, txt, r, _rotation(lines[0]["dir"]), min(size, 11.0))
+    return units, kept
