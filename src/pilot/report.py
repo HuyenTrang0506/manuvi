@@ -14,7 +14,14 @@ from .run import PageOutcome, PilotResult
 VERDICTS = ("usable as is", "usable with fixes", "not usable")
 TYPE_NAMES = {"text": "prose", "table": "table", "diagram": "diagram/legend", "mixed": "table + diagram",
               "scanned": "image only"}
-STATUS_TEXT = {"ok": "ok", "needs_ocr": "needs OCR (skipped)", "failed": "FAILED", "render_failed": "FAILED"}
+STATUS_TEXT = {"ok": "ok", "failed": "FAILED", "render_failed": "FAILED"}
+
+
+def _vision(o: PageOutcome) -> str:
+    if not o.vision:
+        return "-"
+    s = f"{o.vision}: {o.vision_blocks} blocks, {len(o.vision_flagged)} flagged"
+    return s + (f" ({o.vision_note})" if o.vision_note else "")
 
 
 def _flags(o: PageOutcome) -> str:
@@ -27,13 +34,15 @@ def write_report(res: PilotResult, path: Path) -> Path:
          "No manual text is stored in this file. Layout flags: `overflow` = text does not fit its box, "
          "`font_below_min` = text shrunk to the minimum size or below, `legend_fallback` = long labels moved "
          "to a numbered legend. Leftover English counts words outside protected names, codes and "
-         "abbreviations.", "",
-         "| Page | PDF | Type | Result | Segments | Kept as printed | Repaired | To review | Leftover English | Layout flags | Seconds |",
-         "|---|---|---|---|---|---|---|---|---|---|---|"]
+         "abbreviations. `Vision` = text that has no text layer (scans, pictures inside diagrams) was read by a "
+         "local vision model: `page` = whole page, `regions` = only the picture areas; flagged blocks are marked "
+         "`[!]` in the PDF, or listed here only when they could not be placed or contained a foreign script.", "",
+         "| Page | PDF | Type | Result | Segments | Kept as printed | Repaired | To review | Leftover English | Vision | Layout flags | Seconds |",
+         "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for o in res.outcomes:
         L.append(f"| {o.label} | {o.pdf_page} | {TYPE_NAMES.get(o.kind, o.kind)} | {STATUS_TEXT.get(o.status, o.status)}"
                  f"{' (' + o.error + ')' if o.error else ''} | {o.segments} | {o.kept} | {o.repaired} | "
-                 f"{len(o.review)} | {o.leaked} | {_flags(o)} | {o.seconds:.1f} |")
+                 f"{len(o.review)} | {o.leaked} | {_vision(o)} | {_flags(o)} | {o.seconds:.1f} |")
     L += ["", "## Segments routed to review", "",
           "Marked in the Vietnamese PDF with a dashed frame, a warning triangle and the text `[!]`. "
           "Safety text (WARNING, CAUTION, DANGER, NOTE) is always routed to a human.", ""]
@@ -45,12 +54,25 @@ def write_report(res: PilotResult, path: Path) -> Path:
             L.append(f"- Page {o.label}, segment {r['id']}: {what} (rules: {r['rules']})")
     if not any_rev:
         L.append("- none")
+    L += ["", "## Blocks read by the vision model and flagged", "",
+          "Model-read text is never trusted silently: low confidence, a box outside the page or overlapping another, "
+          "a foreign script, or a code that looks misread all flag the block.", ""]
+    any_v = False
+    for o in res.outcomes:
+        for f in o.vision_flagged:
+            any_v = True
+            where = f"segment {f['id']}" if f["shown"] else "a block"
+            tail = "marked in the PDF" if f["shown"] else "not translated, not drawn"
+            L.append(f"- Page {o.label}, {where}: {f['reasons']} ({tail})")
+    if not any_v:
+        L.append("- none")
     todo = [o for o in res.outcomes if o.status != "ok"]
     if todo:
         L += ["", "## Pages that need action", ""]
         for o in todo:
-            if o.status == "needs_ocr":
-                L.append(f"- Page {o.label}: no text layer. Needs OCR before it can be translated.")
+            if o.error == "VisionReadFailed":
+                L.append(f"- Page {o.label}: no text layer and the vision model could not read it. Check that the local "
+                         "vision model is installed (`scripts/mac/vision_smoke.sh`), then re-run.")
             else:
                 L.append(f"- Page {o.label}: processing failed ({o.error or 'error'}). Re-run to retry; finished pages are not redone.")
     if res.warnings:
@@ -71,7 +93,7 @@ def write_form(res: PilotResult, path: Path) -> Path:
     for c in ws[1]:
         c.font = Font(bold=True)
     for o in res.outcomes:
-        note = {"needs_ocr": "Not translated: scanned page", "failed": "Not translated: error",
+        note = {"failed": "Not translated: error",
                 "render_failed": "Not translated: error"}.get(o.status, "")
         ws.append([_safe(v) for v in (o.label, o.pdf_page, TYPE_NAMES.get(o.kind, o.kind), len(o.review), "", note)])
     n = len(res.outcomes) + 1

@@ -22,6 +22,8 @@ class Unit:
     bbox: tuple[float, float, float, float]
     rotate: int = 0
     max_size: float = 10.0
+    source: str = "text"            # text (text layer) | vision (read by the vision model)
+    reasons: tuple[str, ...] = ()   # vision: why the block needs review (empty = confident)
 
 
 def needs_translation(text: str) -> bool:
@@ -85,3 +87,30 @@ def page_units(page: pymupdf.Page) -> tuple[list[Unit], int]:
         kind = "prose" if len(txt) > 40 and len(lines) > 1 else "label"
         add(kind, txt, r, _rotation(lines[0]["dir"]), min(size, 11.0))
     return units, kept
+
+
+_VISION_KIND = {"label": "label", "legend": "label", "paragraph": "prose", "table_cell": "table"}
+
+
+def vision_units(page: pymupdf.Page, blocks, first: int = 1) -> tuple[list[Unit], int, list]:
+    """Units for blocks read by the vision model. Returns (units, kept as printed, blocks only reported).
+    Blocks that failed a blocking check (foreign script, unplaceable box) are never translated or drawn."""
+    from src.intake.vision_read import text_rotation, to_visible
+
+    units: list[Unit] = []
+    kept = 0
+    reported = []
+    rot = text_rotation(page)
+    for b in blocks:
+        if b.blocking:
+            reported.append(b)
+            continue
+        text = " ".join(b.text.split())[:MAX_CHARS]
+        if not needs_translation(text) and not b.needs_review:
+            kept += 1
+            continue
+        vis = to_visible(page, pymupdf.Rect(b.bbox))
+        size = max(5.0, min(11.0, 0.8 * min(vis.width, vis.height)))
+        units.append(Unit(f"V{first + len(units):03d}", _VISION_KIND.get(b.kind, "label"), text,
+                          tuple(round(float(v), 2) for v in b.bbox), rot, size, "vision", tuple(b.reasons)))
+    return units, kept, reported

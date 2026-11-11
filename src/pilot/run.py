@@ -13,6 +13,8 @@ import pymupdf
 
 from src.eval.cases import EvalCase
 from src.eval.metrics import leakage
+from src.intake.vision_detect import analyze_page
+from src.intake.vision_read import VisionConfig, VisionReader, load_vision_config
 from src.llm_gateway.config import resolve_config
 from src.pipeline.demo import write_chunks
 from src.pipeline.runner import make_gateway, run_job
@@ -22,7 +24,7 @@ from src.render.interleave import interleave
 from src.render.page import Segment
 
 from . import render as R
-from .extract import page_units
+from .extract import page_units, vision_units
 from .sample import SectionPage, choose_sample, classify_all, section_pages
 
 DEFAULT_KEEP = ("Kobelco", "ACERA", "SK70SR-1ES", "SK70SR")  # names kept in English, never counted as leaks
@@ -34,12 +36,16 @@ class PilotError(Exception):
     """Setup problem the founder can fix (message is safe to print)."""
 
 
+class VisionReadFailed(Exception):
+    """A page without a usable text layer could not be read by the vision model."""
+
+
 @dataclass
 class PageOutcome:
     label: str
     pdf_page: int
     kind: str
-    status: str = "pending"            # ok | needs_ocr | failed | render_failed
+    status: str = "pending"            # ok | failed | render_failed
     segments: int = 0                  # units sent to the model
     kept: int = 0                      # blocks left as printed (labels, codes, abbreviations)
     repaired: int = 0
@@ -49,6 +55,11 @@ class PageOutcome:
     qa_status: str = ""
     seconds: float = 0.0
     error: str = ""
+    vision: str = ""                   # "" | page | regions: how much of the page the vision model read
+    vision_blocks: int = 0
+    vision_calls: int = 0
+    vision_flagged: list[dict] = field(default_factory=list)   # {id, reasons, shown}: shown=False is report-only
+    vision_note: str = ""              # skipped/failed reads, error classes only
 
 
 @dataclass
@@ -66,11 +77,12 @@ class PilotResult:
 
     def summary_line(self) -> str:
         n = len(self.outcomes)
-        ocr = sum(o.status == "needs_ocr" for o in self.outcomes)
+        vis = sum(bool(o.vision) and o.status == "ok" for o in self.outcomes)
         bad = sum(o.status in ("failed", "render_failed") for o in self.outcomes)
         rev = sum(len(o.review) for o in self.outcomes)
-        return (f"SUMMARY: {self.succeeded} of {n} pages succeeded ({ocr} need OCR, {bad} failed); "
-                f"{rev} segments routed to review")
+        flagged = sum(len(o.vision_flagged) for o in self.outcomes)
+        return (f"SUMMARY: {self.succeeded} of {n} pages succeeded ({vis} read by vision, {bad} failed); "
+                f"{rev} segments routed to review, {flagged} vision blocks flagged")
 
 
 def resolve_model(profile: str, model: Optional[str]) -> str:
@@ -111,17 +123,38 @@ def _rules(issues: list[str]) -> str:
     return ",".join(sorted({i.split(":", 1)[0] for i in issues})) or "-"
 
 
+def _read_with_vision(page, reader: VisionReader, vcfg: VisionConfig, o: PageOutcome, units: list) -> list:
+    """Vision-read what the text layer lacks, add the blocks as units, fill the outcome. Returns reported-only blocks."""
+    decision, text_blocks = analyze_page(page, vcfg)
+    if decision.mode == "none":
+        return []
+    o.vision = decision.mode
+    vr = reader.read_page(page, decision.regions if decision.mode == "regions" else None, text_blocks,
+                          dense=decision.dense)
+    o.vision_calls, o.vision_blocks = vr.calls, len(vr.blocks)
+    vunits, vkept, reported = vision_units(page, vr.blocks)
+    o.kept += vkept
+    units.extend(vunits)
+    notes = sorted(set(vr.errors) | set(vr.skipped)) + (["regions_truncated"] if decision.truncated else [])
+    o.vision_note = ", ".join(notes)
+    if vr.failed or decision.truncated:
+        o.flags.append("vision_incomplete")
+    if vr.failed and decision.mode == "page" and not units:
+        raise VisionReadFailed(o.vision_note or "no blocks")
+    return reported
+
+
 def _page(pdf: Path, sp: SectionPage, section: str, work: Path, vi_dir: Path, model_env: dict, profile: str,
-          adapters, fontfile: str, keep: tuple[str, ...], min_size: float) -> PageOutcome:
+          adapters, fontfile: str, keep: tuple[str, ...], min_size: float, reader: VisionReader,
+          vcfg: VisionConfig) -> PageOutcome:
     o = PageOutcome(sp.label, sp.pdf_page, sp.kind)
     p0 = sp.pdf_page - 1
     out_pdf = vi_dir / f"p{sp.pdf_page:04d}.pdf"
-    if sp.kind == "scanned":
-        o.status = "needs_ocr"
-        R.unprocessed_page(pdf, p0, "CẦN OCR: trang không có lớp chữ, chưa dịch", out_pdf, fontfile)
-        return o
     with pymupdf.open(str(pdf)) as doc:
         units, o.kept = page_units(doc[p0])
+        reported = _read_with_vision(doc[p0], reader, vcfg, o, units)
+    for b in reported:
+        o.vision_flagged.append({"id": "-", "reasons": ",".join(b.reasons), "shown": False})
     o.segments = len(units)
     page_dir = work / f"p{sp.pdf_page:04d}"
     t0 = time.time()
@@ -144,10 +177,14 @@ def _page(pdf: Path, sp: SectionPage, section: str, work: Path, vi_dir: Path, mo
         s = segs_by_id.get(u.id)
         if s is None:
             s = {"status": "error", "target": "", "issues": ["MISSING: no result"]}
-        routed = s["status"] in REVIEW
+        routed = s["status"] in REVIEW or bool(u.reasons)
         target = (s.get("target") or "").strip()
+        if u.reasons:
+            o.vision_flagged.append({"id": u.id, "reasons": ",".join(u.reasons), "shown": True})
         if routed:
-            o.review.append({"id": u.id, "rules": _rules(s.get("issues", [])), "status": s["status"]})
+            rules = ",".join(sorted({*_rules(s.get("issues", [])).split(","), *(f"vision:{r}" for r in u.reasons)} - {"-"}))
+            o.review.append({"id": u.id, "rules": rules or "-", "status": s["status"] if s["status"] in REVIEW
+                             else "needs_review"})
         if s["status"] == "error" or not target:
             text = R.MARK + "CHƯA DỊCH: " + u.text      # English stays visible but flagged, never passed off as VI
         else:
@@ -175,7 +212,8 @@ def _page(pdf: Path, sp: SectionPage, section: str, work: Path, vi_dir: Path, mo
 def run_pilot(pdf: Path, section: str, pages: int, out: Path, *, model: Optional[str] = None,
               profile: str = "qa", adapters=None, fontfile: Optional[str] = None,
               keep: tuple[str, ...] = (), min_size: float = 7.0,
-              progress: Callable[[str], None] = _log) -> PilotResult:
+              progress: Callable[[str], None] = _log, vision_model: Optional[str] = None,
+              vision_cfg: Optional[VisionConfig] = None) -> PilotResult:
     pdf, out = Path(pdf), Path(out)
     if profile not in ("dev", "qa"):
         raise PilotError("the pilot runs local models only (profile dev or qa)")
@@ -184,6 +222,11 @@ def run_pilot(pdf: Path, section: str, pages: int, out: Path, *, model: Optional
     if not font:
         raise PilotError("no Vietnamese font found; set MANUVI_VI_FONT to a .ttf file")
     model_env = {"MANUVI_MODEL_BULK": model_name, "MANUVI_MODEL_STRONG": model_name} if model else {}
+    vision_env = {}
+    if vision_model:
+        if not _MODEL.match(vision_model):
+            raise PilotError(f"--vision-model must look like ollama:<tag> (local models only), got {vision_model!r}")
+        vision_env = {"MANUVI_MODEL_VISION": vision_model}
     try:
         doc = pymupdf.open(str(pdf))
     except Exception as e:
@@ -198,18 +241,24 @@ def run_pilot(pdf: Path, section: str, pages: int, out: Path, *, model: Optional
              + ", ".join(p.label for p in sample))
     work, vi_dir = out / "work", out / "work" / "vi-pages"
     vi_dir.mkdir(parents=True, exist_ok=True)
+    vcfg = vision_cfg or load_vision_config()
+    (work / "vision").mkdir(parents=True, exist_ok=True)
+    reader = VisionReader(make_gateway(work / "vision", profile, adapters=adapters, env=vision_env),
+                          "pilot-vision", vcfg)
     outcomes: list[PageOutcome] = []
     keep_all = tuple(dict.fromkeys(DEFAULT_KEEP + tuple(keep)))
     for sp in sample:
         t0 = time.time()
         try:
-            o = _page(pdf, sp, section, work, vi_dir, model_env, profile, adapters, font, keep_all, min_size)
+            o = _page(pdf, sp, section, work, vi_dir, model_env, profile, adapters, font, keep_all, min_size, reader, vcfg)
         except Exception as e:  # never log source text: class name only
             o = PageOutcome(sp.label, sp.pdf_page, sp.kind, status="failed", error=type(e).__name__,
                             seconds=time.time() - t0)
             progress(f"page {sp.label}: failed ({o.error})")
             try:
-                R.unprocessed_page(pdf, sp.pdf_page - 1, "LỖI: trang chưa được dịch", vi_dir / f"p{sp.pdf_page:04d}.pdf", font)
+                R.unprocessed_page(pdf, sp.pdf_page - 1,
+                                   "LỖI: không đọc được chữ trên ảnh, chưa dịch" if o.error == "VisionReadFailed"
+                                   else "LỖI: trang chưa được dịch", vi_dir / f"p{sp.pdf_page:04d}.pdf", font)
             except Exception as e2:
                 o.status, o.error = "render_failed", type(e2).__name__
                 progress(f"page {sp.label}: banner failed ({o.error})")

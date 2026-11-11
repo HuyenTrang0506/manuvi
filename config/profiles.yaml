@@ -1,6 +1,19 @@
 # LLM gateway profiles. Overridden by SSM (/manuvi/<profile>/...) and env vars.
 # Model spec format: "<adapter>:<model_id>" with adapter in fake|recorded|ollama|bedrock.
 default_profile: dev
+#
+# Vision (alias `vision`, reads pages without a text layer; customer data, so local models only).
+# Checked on ollama.com/library on 2026-11-11 (download sizes; Apple M1 has about 11.8 GB usable for the model):
+#   VERIFIED  qwen3-vl:8b    6.2 GB  vision, needs Ollama >= 0.12.7  -> qa default
+#   VERIFIED  qwen3-vl:4b    3.3 GB  same family, faster, lower reading quality -> fallback if 8b is too slow
+#   VERIFIED  qwen2.5vl:7b   6.0 GB  vision, bounding boxes as JSON, needs Ollama >= 0.7.0 -> alternative
+#   VERIFIED  gemma3:12b     8.2 GB  text+image, tight on 11.8 GB with the image tokens; gemma3:4b 3.4 GB
+#   UNVERIFIED (not measured, only listed): box coordinate convention of each model. qwen3-vl is expected to use
+#   0..1000 relative coordinates and qwen2.5vl absolute pixels; our prompt asks for 0..1. Run
+#   scripts/mac/vision_smoke.sh; if the boxes fail, set bbox_scale: 1000 in config/vision.yaml.
+#   UNVERIFIED reading quality on the real manual (only the synthetic eval in src/intake/vision_eval.py exists).
+#   The old default llava:7b is not used any more: it is not built for reading small printed text.
+# dev keeps the fake vision model (offline tests). To try a real one in dev: MANUVI_MODEL_VISION=ollama:qwen3-vl:4b
 profiles:
   dev:
     allow_paid: false
@@ -15,7 +28,7 @@ profiles:
     models:
       bulk: "ollama:qwen2.5:7b"
       strong: "ollama:qwen2.5:14b"
-      vision: "ollama:llava:7b"
+      vision: "ollama:qwen3-vl:8b"     # verified tag, see the note at the top
   prod:
     allow_paid: true
     customer_data_adapters: [bedrock]  # explicit opt-in to send customer data
